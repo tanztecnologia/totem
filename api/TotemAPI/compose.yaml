@@ -1,0 +1,6 @@
+﻿services:
+  totemapi:
+    image: totemapi
+    build:
+      context: .
+      dockerfile: TotemAPI/Dockerfile

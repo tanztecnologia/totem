@@ -1,0 +1,27 @@
+
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TotemAPI", "TotemAPI\TotemAPI.csproj", "{BF16A0F8-6154-46BF-8030-3BD6F1DBF78B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TotemAPI.Tests", "TotemAPI.Tests\TotemAPI.Tests.csproj", "{A3D1ED69-2F74-4B98-89BC-4F6E2AD2BDBB}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{0C8C1B06-1CEE-416F-B21C-BE39E7F83E85}"
+	ProjectSection(SolutionItems) = preProject
+		compose.yaml = compose.yaml
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{BF16A0F8-6154-46BF-8030-3BD6F1DBF78B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BF16A0F8-6154-46BF-8030-3BD6F1DBF78B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BF16A0F8-6154-46BF-8030-3BD6F1DBF78B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BF16A0F8-6154-46BF-8030-3BD6F1DBF78B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A3D1ED69-2F74-4B98-89BC-4F6E2AD2BDBB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A3D1ED69-2F74-4B98-89BC-4F6E2AD2BDBB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A3D1ED69-2F74-4B98-89BC-4F6E2AD2BDBB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A3D1ED69-2F74-4B98-89BC-4F6E2AD2BDBB}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

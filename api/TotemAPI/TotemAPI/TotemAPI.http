@@ -1,0 +1,6 @@
+@TotemAPI_HostAddress = http://localhost:5120
+
+GET {{TotemAPI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
