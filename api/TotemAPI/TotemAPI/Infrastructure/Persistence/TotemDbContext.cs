@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using TotemAPI.Features.Catalog.Domain;
+using TotemAPI.Features.Checkout.Domain;
 using TotemAPI.Features.Identity.Domain;
 
 namespace TotemAPI.Infrastructure.Persistence;
@@ -14,6 +15,9 @@ public sealed class TotemDbContext : DbContext
     public DbSet<TenantRow> Tenants => Set<TenantRow>();
     public DbSet<UserRow> Users => Set<UserRow>();
     public DbSet<SkuRow> Skus => Set<SkuRow>();
+    public DbSet<OrderRow> Orders => Set<OrderRow>();
+    public DbSet<OrderItemRow> OrderItems => Set<OrderItemRow>();
+    public DbSet<PaymentRow> Payments => Set<PaymentRow>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -57,6 +61,59 @@ public sealed class TotemDbContext : DbContext
             b.HasIndex(x => new { x.TenantId, x.NormalizedCode }).IsUnique();
             b.HasIndex(x => x.TenantId);
         });
+
+        modelBuilder.Entity<OrderRow>(b =>
+        {
+            b.ToTable("orders");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.TenantId).IsRequired();
+            b.Property(x => x.Fulfillment).HasConversion<int>().IsRequired();
+            b.Property(x => x.TotalCents).IsRequired();
+            b.Property(x => x.Status).HasConversion<int>().IsRequired();
+            b.Property(x => x.CreatedAt).IsRequired();
+            b.HasIndex(x => x.TenantId);
+            b.HasIndex(x => new { x.TenantId, x.CreatedAt });
+        });
+
+        modelBuilder.Entity<OrderItemRow>(b =>
+        {
+            b.ToTable("order_items");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.TenantId).IsRequired();
+            b.Property(x => x.OrderId).IsRequired();
+            b.Property(x => x.SkuId).IsRequired();
+            b.Property(x => x.SkuCode).IsRequired();
+            b.Property(x => x.SkuName).IsRequired();
+            b.Property(x => x.UnitPriceCents).IsRequired();
+            b.Property(x => x.Quantity).IsRequired();
+            b.Property(x => x.TotalCents).IsRequired();
+            b.Property(x => x.CreatedAt).IsRequired();
+            b.HasIndex(x => new { x.TenantId, x.OrderId });
+            b.HasIndex(x => x.OrderId);
+            b.HasOne<OrderRow>().WithMany().HasForeignKey(x => x.OrderId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<PaymentRow>(b =>
+        {
+            b.ToTable("payments");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.TenantId).IsRequired();
+            b.Property(x => x.OrderId).IsRequired();
+            b.Property(x => x.Method).HasConversion<int>().IsRequired();
+            b.Property(x => x.Status).HasConversion<int>().IsRequired();
+            b.Property(x => x.AmountCents).IsRequired();
+            b.Property(x => x.Provider).IsRequired();
+            b.Property(x => x.ProviderReference).IsRequired();
+            b.Property(x => x.TransactionId).IsRequired();
+            b.Property(x => x.PixPayload);
+            b.Property(x => x.PixExpiresAt);
+            b.Property(x => x.CreatedAt).IsRequired();
+            b.Property(x => x.UpdatedAt).IsRequired();
+            b.HasIndex(x => x.TenantId);
+            b.HasIndex(x => new { x.TenantId, x.OrderId });
+            b.HasIndex(x => x.OrderId);
+            b.HasOne<OrderRow>().WithMany().HasForeignKey(x => x.OrderId).OnDelete(DeleteBehavior.Cascade);
+        });
     }
 }
 
@@ -93,6 +150,47 @@ public sealed class SkuRow
     public DateTimeOffset UpdatedAt { get; set; }
 }
 
+public sealed class OrderRow
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public OrderFulfillment Fulfillment { get; set; }
+    public int TotalCents { get; set; }
+    public OrderStatus Status { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+}
+
+public sealed class OrderItemRow
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid OrderId { get; set; }
+    public Guid SkuId { get; set; }
+    public string SkuCode { get; set; } = string.Empty;
+    public string SkuName { get; set; } = string.Empty;
+    public int UnitPriceCents { get; set; }
+    public int Quantity { get; set; }
+    public int TotalCents { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+}
+
+public sealed class PaymentRow
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid OrderId { get; set; }
+    public PaymentMethod Method { get; set; }
+    public PaymentStatus Status { get; set; }
+    public int AmountCents { get; set; }
+    public string Provider { get; set; } = string.Empty;
+    public string ProviderReference { get; set; } = string.Empty;
+    public string TransactionId { get; set; } = string.Empty;
+    public string? PixPayload { get; set; }
+    public DateTimeOffset? PixExpiresAt { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
+}
+
 internal static class TenantMapping
 {
     public static Tenant ToDomain(this TenantRow row) => new(row.Id, row.Name, row.CreatedAt);
@@ -113,3 +211,45 @@ internal static class SkuMapping
     public static string NormalizeCode(string code) => (code ?? string.Empty).Trim().ToUpperInvariant();
 }
 
+internal static class OrderMapping
+{
+    public static Order ToDomain(this OrderRow row) =>
+        new(row.Id, row.TenantId, row.Fulfillment, row.TotalCents, row.Status, row.CreatedAt);
+}
+
+internal static class OrderItemMapping
+{
+    public static OrderItem ToDomain(this OrderItemRow row) =>
+        new(
+            row.Id,
+            row.TenantId,
+            row.OrderId,
+            row.SkuId,
+            row.SkuCode,
+            row.SkuName,
+            row.UnitPriceCents,
+            row.Quantity,
+            row.TotalCents,
+            row.CreatedAt
+        );
+}
+
+internal static class PaymentMapping
+{
+    public static Payment ToDomain(this PaymentRow row) =>
+        new(
+            row.Id,
+            row.TenantId,
+            row.OrderId,
+            row.Method,
+            row.Status,
+            row.AmountCents,
+            row.Provider,
+            row.ProviderReference,
+            row.TransactionId,
+            row.PixPayload,
+            row.PixExpiresAt,
+            row.CreatedAt,
+            row.UpdatedAt
+        );
+}

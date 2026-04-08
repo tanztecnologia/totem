@@ -53,5 +53,71 @@ public sealed partial class TotemDbContextModelSnapshot : ModelSnapshot
             b.HasIndex("TenantId", "NormalizedCode").IsUnique();
             b.ToTable("skus");
         });
+
+        modelBuilder.Entity("TotemAPI.Infrastructure.Persistence.OrderRow", b =>
+        {
+            b.Property<Guid>("Id").HasColumnType("TEXT");
+            b.Property<DateTimeOffset>("CreatedAt").HasColumnType("TEXT");
+            b.Property<int>("Fulfillment").HasColumnType("INTEGER");
+            b.Property<int>("Status").HasColumnType("INTEGER");
+            b.Property<Guid>("TenantId").HasColumnType("TEXT");
+            b.Property<int>("TotalCents").HasColumnType("INTEGER");
+            b.HasKey("Id");
+            b.HasIndex("TenantId");
+            b.HasIndex("TenantId", "CreatedAt");
+            b.ToTable("orders");
+        });
+
+        modelBuilder.Entity("TotemAPI.Infrastructure.Persistence.OrderItemRow", b =>
+        {
+            b.Property<Guid>("Id").HasColumnType("TEXT");
+            b.Property<DateTimeOffset>("CreatedAt").HasColumnType("TEXT");
+            b.Property<Guid>("OrderId").HasColumnType("TEXT");
+            b.Property<int>("Quantity").HasColumnType("INTEGER");
+            b.Property<Guid>("SkuId").HasColumnType("TEXT");
+            b.Property<string>("SkuCode").IsRequired().HasColumnType("TEXT");
+            b.Property<string>("SkuName").IsRequired().HasColumnType("TEXT");
+            b.Property<Guid>("TenantId").HasColumnType("TEXT");
+            b.Property<int>("TotalCents").HasColumnType("INTEGER");
+            b.Property<int>("UnitPriceCents").HasColumnType("INTEGER");
+            b.HasKey("Id");
+            b.HasIndex("OrderId");
+            b.HasIndex("TenantId", "OrderId");
+            b.ToTable("order_items");
+
+            b.HasOne("TotemAPI.Infrastructure.Persistence.OrderRow", null)
+                .WithMany()
+                .HasForeignKey("OrderId")
+                .OnDelete(DeleteBehavior.Cascade)
+                .IsRequired();
+        });
+
+        modelBuilder.Entity("TotemAPI.Infrastructure.Persistence.PaymentRow", b =>
+        {
+            b.Property<Guid>("Id").HasColumnType("TEXT");
+            b.Property<int>("AmountCents").HasColumnType("INTEGER");
+            b.Property<DateTimeOffset>("CreatedAt").HasColumnType("TEXT");
+            b.Property<int>("Method").HasColumnType("INTEGER");
+            b.Property<Guid>("OrderId").HasColumnType("TEXT");
+            b.Property<string?>("PixPayload").HasColumnType("TEXT");
+            b.Property<DateTimeOffset?>("PixExpiresAt").HasColumnType("TEXT");
+            b.Property<string>("Provider").IsRequired().HasColumnType("TEXT");
+            b.Property<string>("ProviderReference").IsRequired().HasColumnType("TEXT");
+            b.Property<int>("Status").HasColumnType("INTEGER");
+            b.Property<Guid>("TenantId").HasColumnType("TEXT");
+            b.Property<string>("TransactionId").IsRequired().HasColumnType("TEXT");
+            b.Property<DateTimeOffset>("UpdatedAt").HasColumnType("TEXT");
+            b.HasKey("Id");
+            b.HasIndex("OrderId");
+            b.HasIndex("TenantId");
+            b.HasIndex("TenantId", "OrderId");
+            b.ToTable("payments");
+
+            b.HasOne("TotemAPI.Infrastructure.Persistence.OrderRow", null)
+                .WithMany()
+                .HasForeignKey("OrderId")
+                .OnDelete(DeleteBehavior.Cascade)
+                .IsRequired();
+        });
     }
 }
