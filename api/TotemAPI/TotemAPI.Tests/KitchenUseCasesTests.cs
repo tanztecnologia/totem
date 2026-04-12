@@ -4,10 +4,12 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
+using TotemAPI.Features.Catalog.Infrastructure;
 using TotemAPI.Features.Checkout.Application.Abstractions;
 using TotemAPI.Features.Checkout.Domain;
 using TotemAPI.Features.Kitchen.Application.UseCases;
 using TotemAPI.Features.Checkout.Infrastructure;
+using TotemAPI.Features.Kitchen.Infrastructure;
 
 namespace TotemAPI.Tests;
 
@@ -54,7 +56,7 @@ public class KitchenUseCasesTests
     {
         // Arrange
         var (tenantId, _, repo) = SetupRepo();
-        var useCase = new ListKitchenOrders(repo);
+        var useCase = new ListKitchenOrders(repo, new InMemorySkuRepository(), new InMemoryKitchenSlaRepository());
         var query = new ListKitchenOrdersQuery(tenantId, new[] { OrderKitchenStatus.Queued }, 10);
 
         // Act
@@ -71,7 +73,7 @@ public class KitchenUseCasesTests
     {
         // Arrange
         var (tenantId, orderId, repo) = SetupRepo();
-        var useCase = new GetKitchenOrder(repo);
+        var useCase = new GetKitchenOrder(repo, new InMemorySkuRepository(), new InMemoryKitchenSlaRepository());
         var query = new GetKitchenOrderQuery(tenantId, orderId);
 
         // Act
@@ -102,5 +104,35 @@ public class KitchenUseCasesTests
         var updatedOrder = await repo.GetOrderAsync(tenantId, orderId, CancellationToken.None);
         Assert.NotNull(updatedOrder);
         Assert.Equal(OrderKitchenStatus.InPreparation, updatedOrder.KitchenStatus);
+    }
+
+    [Fact]
+    public async Task GetKitchenSla_Retorna_Defaults_Quando_Nao_Configurado()
+    {
+        var slas = new InMemoryKitchenSlaRepository();
+        var get = new GetKitchenSla(slas);
+        var result = await get.HandleAsync(new GetKitchenSlaQuery(Guid.NewGuid()), CancellationToken.None);
+
+        Assert.Equal(120, result.QueuedTargetSeconds);
+        Assert.Equal(480, result.PreparationBaseTargetSeconds);
+        Assert.Equal(120, result.ReadyTargetSeconds);
+        Assert.Null(result.UpdatedAt);
+    }
+
+    [Fact]
+    public async Task UpsertKitchenSla_Persiste_E_Get_Retorna_Valores()
+    {
+        var tenantId = Guid.NewGuid();
+        var slas = new InMemoryKitchenSlaRepository();
+        var upsert = new UpsertKitchenSla(slas);
+        var get = new GetKitchenSla(slas);
+
+        await upsert.HandleAsync(new UpsertKitchenSlaCommand(tenantId, 10, 20, 30), CancellationToken.None);
+        var result = await get.HandleAsync(new GetKitchenSlaQuery(tenantId), CancellationToken.None);
+
+        Assert.Equal(10, result.QueuedTargetSeconds);
+        Assert.Equal(20, result.PreparationBaseTargetSeconds);
+        Assert.Equal(30, result.ReadyTargetSeconds);
+        Assert.NotNull(result.UpdatedAt);
     }
 }

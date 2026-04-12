@@ -20,7 +20,7 @@ public sealed class CheckoutUseCasesTests
         var createSku = new CreateSku(skuRepo);
 
         var sku = await createSku.HandleAsync(
-            new CreateSkuCommand(tenantId, "X-BURGER", "X Burger", 2500, null, true),
+            new CreateSkuCommand(tenantId, "X-BURGER", "X Burger", 2500, null, null, true),
             CancellationToken.None
         );
 
@@ -79,7 +79,7 @@ public sealed class CheckoutUseCasesTests
         var createSku = new CreateSku(skuRepo);
 
         var sku = await createSku.HandleAsync(
-            new CreateSkuCommand(tenantId, "COCA-350", "Coca-Cola 350ml", 800, null, true),
+            new CreateSkuCommand(tenantId, "COCA-350", "Coca-Cola 350ml", 800, null, null, true),
             CancellationToken.None
         );
 
@@ -131,7 +131,7 @@ public sealed class CheckoutUseCasesTests
         var createSku = new CreateSku(skuRepo);
 
         var sku = await createSku.HandleAsync(
-            new CreateSkuCommand(tenantA, "X-BURGER", "X Burger", 2500, null, true),
+            new CreateSkuCommand(tenantA, "X-BURGER", "X Burger", 2500, null, null, true),
             CancellationToken.None
         );
 

@@ -8,6 +8,7 @@ public sealed record CreateSkuCommand(
     string Code,
     string Name,
     int PriceCents,
+    int? AveragePrepSeconds,
     string? ImageUrl,
     bool IsActive
 );
@@ -18,6 +19,7 @@ public sealed record SkuResult(
     string Code,
     string Name,
     int PriceCents,
+    int? AveragePrepSeconds,
     string? ImageUrl,
     bool IsActive
 );
@@ -42,6 +44,8 @@ public sealed class CreateSku
         if (code.Length < 2) throw new ArgumentException("Code inválido.");
         if (name.Length < 2) throw new ArgumentException("Name inválido.");
         if (command.PriceCents < 0) throw new ArgumentException("PriceCents inválido.");
+        if (command.AveragePrepSeconds is not null && command.AveragePrepSeconds <= 0)
+            throw new ArgumentException("AveragePrepSeconds inválido.");
 
         var existing = await _skus.GetByCodeAsync(command.TenantId, code, ct);
         if (existing is not null) throw new InvalidOperationException("SKU já existe.");
@@ -53,6 +57,7 @@ public sealed class CreateSku
             Code: code,
             Name: name,
             PriceCents: command.PriceCents,
+            AveragePrepSeconds: command.AveragePrepSeconds,
             ImageUrl: imageUrl,
             IsActive: command.IsActive,
             CreatedAt: now,
@@ -60,6 +65,6 @@ public sealed class CreateSku
         );
 
         await _skus.AddAsync(sku, ct);
-        return new SkuResult(sku.Id, sku.TenantId, sku.Code, sku.Name, sku.PriceCents, sku.ImageUrl, sku.IsActive);
+        return new SkuResult(sku.Id, sku.TenantId, sku.Code, sku.Name, sku.PriceCents, sku.AveragePrepSeconds, sku.ImageUrl, sku.IsActive);
     }
 }

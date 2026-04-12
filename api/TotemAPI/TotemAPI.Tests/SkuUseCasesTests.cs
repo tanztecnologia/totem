@@ -20,7 +20,7 @@ public sealed class SkuUseCasesTests
         var tenantB = Guid.NewGuid();
 
         var created = await create.HandleAsync(
-            new CreateSkuCommand(tenantA, "X-BURGER", "X Burger", 2500, null, true),
+            new CreateSkuCommand(tenantA, "X-BURGER", "X Burger", 2500, null, null, true),
             CancellationToken.None
         );
 
@@ -31,7 +31,7 @@ public sealed class SkuUseCasesTests
         Assert.Null(otherTenantGet);
 
         var updatedOtherTenant = await update.HandleAsync(
-            new UpdateSkuCommand(tenantB, created.Id, "X-BURGER", "Novo Nome", 2600, null, true),
+            new UpdateSkuCommand(tenantB, created.Id, "X-BURGER", "Novo Nome", 2600, null, null, true),
             CancellationToken.None
         );
         Assert.Null(updatedOtherTenant);
@@ -55,14 +55,14 @@ public sealed class SkuUseCasesTests
         var tenantA = Guid.NewGuid();
 
         await create.HandleAsync(
-            new CreateSkuCommand(tenantA, "X-BURGER", "X Burger", 2500, null, true),
+            new CreateSkuCommand(tenantA, "X-BURGER", "X Burger", 2500, null, null, true),
             CancellationToken.None
         );
 
         await Assert.ThrowsAsync<InvalidOperationException>(
             async () =>
                 await create.HandleAsync(
-                    new CreateSkuCommand(tenantA, "X-BURGER", "X Burger 2", 2600, null, true),
+                    new CreateSkuCommand(tenantA, "X-BURGER", "X Burger 2", 2600, null, null, true),
                     CancellationToken.None
                 )
         );
@@ -75,12 +75,12 @@ public sealed class SkuUseCasesTests
         var create = new CreateSku(repo);
 
         await create.HandleAsync(
-            new CreateSkuCommand(Guid.NewGuid(), "X-BURGER", "X Burger", 2500, null, true),
+            new CreateSkuCommand(Guid.NewGuid(), "X-BURGER", "X Burger", 2500, null, null, true),
             CancellationToken.None
         );
 
         var created = await create.HandleAsync(
-            new CreateSkuCommand(Guid.NewGuid(), "X-BURGER", "X Burger", 2500, null, true),
+            new CreateSkuCommand(Guid.NewGuid(), "X-BURGER", "X Burger", 2500, null, null, true),
             CancellationToken.None
         );
 

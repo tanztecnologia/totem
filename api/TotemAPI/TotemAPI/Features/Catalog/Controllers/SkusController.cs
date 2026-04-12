@@ -63,6 +63,7 @@ public sealed class SkusController : ControllerBase
                     Code: request.Code,
                     Name: request.Name,
                     PriceCents: request.PriceCents,
+                    AveragePrepSeconds: request.AveragePrepSeconds,
                     ImageUrl: request.ImageUrl,
                     IsActive: request.IsActive
                 ),
@@ -100,6 +101,7 @@ public sealed class SkusController : ControllerBase
                     Code: request.Code,
                     Name: request.Name,
                     PriceCents: request.PriceCents,
+                    AveragePrepSeconds: request.AveragePrepSeconds,
                     ImageUrl: request.ImageUrl,
                     IsActive: request.IsActive
                 ),
@@ -162,6 +164,7 @@ public sealed record CreateSkuRequest(
     string Code,
     string Name,
     int PriceCents,
+    int? AveragePrepSeconds,
     string? ImageUrl,
     bool IsActive
 );
@@ -170,7 +173,7 @@ public sealed record UpdateSkuRequest(
     string Code,
     string Name,
     int PriceCents,
+    int? AveragePrepSeconds,
     string? ImageUrl,
     bool IsActive
 );
-

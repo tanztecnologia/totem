@@ -7,6 +7,7 @@ import 'package:totem_ds/totem_ds.dart';
 import 'src/features/checkout/data/services/fake_checkout_service.dart';
 import 'src/features/checkout/data/services/totem_api_checkout_service.dart';
 import 'src/features/checkout/domain/services/checkout_service.dart';
+import 'src/features/kiosk/data/repositories/api_catalog_repository.dart';
 import 'src/features/kiosk/data/repositories/in_memory_catalog_repository.dart';
 import 'src/features/kiosk/domain/repositories/catalog_repository.dart';
 import 'src/features/kiosk/presentation/bloc/kiosk_bloc.dart';
@@ -82,7 +83,15 @@ class TotemApp extends StatelessWidget {
     return MultiRepositoryProvider(
       providers: [
         RepositoryProvider<CatalogRepository>(
-          create: (_) => const InMemoryCatalogRepository(),
+          create: (_) {
+            if (sanitizedBaseUrl == null) return const InMemoryCatalogRepository();
+            return ApiCatalogRepository(
+              baseUrl: sanitizedBaseUrl,
+              tenantName: tenantName,
+              email: email,
+              password: password,
+            );
+          },
         ),
         RepositoryProvider<CheckoutService>(
           create: (_) {

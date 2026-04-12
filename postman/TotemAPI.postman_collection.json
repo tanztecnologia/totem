@@ -306,7 +306,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"code\": \"X-SALADA\",\n  \"name\": \"X Salada\",\n  \"priceCents\": 2800,\n  \"imageUrl\": null,\n  \"isActive\": true\n}"
+              "raw": "{\n  \"code\": \"X-SALADA\",\n  \"name\": \"X Salada\",\n  \"priceCents\": 2800,\n  \"averagePrepSeconds\": 420,\n  \"imageUrl\": null,\n  \"isActive\": true\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/skus",
@@ -359,7 +359,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"code\": \"X-SALADA\",\n  \"name\": \"X Salada (Atualizado)\",\n  \"priceCents\": 2900,\n  \"imageUrl\": null,\n  \"isActive\": true\n}"
+              "raw": "{\n  \"code\": \"X-SALADA\",\n  \"name\": \"X Salada (Atualizado)\",\n  \"priceCents\": 2900,\n  \"averagePrepSeconds\": 480,\n  \"imageUrl\": null,\n  \"isActive\": true\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/skus/{{skuId}}",
@@ -762,6 +762,60 @@
                 "orders",
                 "{{orderId}}",
                 "status"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Admin Get SLA",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/kitchen-sla",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "kitchen-sla"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Admin Upsert SLA",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"queuedTargetSeconds\": 120,\n  \"preparationBaseTargetSeconds\": 480,\n  \"readyTargetSeconds\": 120\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/kitchen-sla",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "kitchen-sla"
               ]
             }
           }

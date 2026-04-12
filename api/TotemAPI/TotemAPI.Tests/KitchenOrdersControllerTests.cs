@@ -6,11 +6,13 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Xunit;
+using TotemAPI.Features.Catalog.Infrastructure;
 using TotemAPI.Features.Checkout.Application.Abstractions;
 using TotemAPI.Features.Checkout.Domain;
 using TotemAPI.Features.Checkout.Infrastructure;
 using TotemAPI.Features.Kitchen.Application.UseCases;
 using TotemAPI.Features.Kitchen.Controllers;
+using TotemAPI.Features.Kitchen.Infrastructure;
 
 namespace TotemAPI.Tests;
 
@@ -45,7 +47,7 @@ public class KitchenOrdersControllerTests
 
         repo.CreateAsync(order, items, payment, CancellationToken.None).Wait();
 
-        var listUseCase = new ListKitchenOrders(repo);
+        var listUseCase = new ListKitchenOrders(repo, new InMemorySkuRepository(), new InMemoryKitchenSlaRepository());
         var updateUseCase = new UpdateKitchenOrderStatus(repo);
 
         var controller = new KitchenOrdersController();
@@ -107,5 +109,75 @@ public class KitchenOrdersControllerTests
 
         // Assert
         Assert.IsType<ForbidResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task AdminKitchenSla_Get_ReturnsOk_WithDefaults()
+    {
+        var tenantId = Guid.NewGuid();
+        var slas = new InMemoryKitchenSlaRepository();
+        var get = new GetKitchenSla(slas);
+
+        var controller = new AdminKitchenSlaController();
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(
+                    new ClaimsIdentity(
+                        new[]
+                        {
+                            new Claim("tenant_id", tenantId.ToString()),
+                            new Claim(ClaimTypes.Role, "Admin"),
+                        }
+                    )
+                )
+            }
+        };
+
+        var result = await controller.Get(get, CancellationToken.None);
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        var payload = Assert.IsType<KitchenSlaResult>(ok.Value);
+
+        Assert.Equal(120, payload.QueuedTargetSeconds);
+        Assert.Equal(480, payload.PreparationBaseTargetSeconds);
+        Assert.Equal(120, payload.ReadyTargetSeconds);
+    }
+
+    [Fact]
+    public async Task AdminKitchenSla_Upsert_Atualiza_Regra_Do_Tenant()
+    {
+        var tenantId = Guid.NewGuid();
+        var slas = new InMemoryKitchenSlaRepository();
+        var upsert = new UpsertKitchenSla(slas);
+        var get = new GetKitchenSla(slas);
+
+        var controller = new AdminKitchenSlaController();
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(
+                    new ClaimsIdentity(
+                        new[]
+                        {
+                            new Claim("tenant_id", tenantId.ToString()),
+                            new Claim(ClaimTypes.Role, "Admin"),
+                        }
+                    )
+                )
+            }
+        };
+
+        var updated = await controller.Upsert(upsert, new UpsertKitchenSlaRequest(10, 20, 30), CancellationToken.None);
+        Assert.IsType<OkObjectResult>(updated.Result);
+
+        var after = await controller.Get(get, CancellationToken.None);
+        var ok = Assert.IsType<OkObjectResult>(after.Result);
+        var payload = Assert.IsType<KitchenSlaResult>(ok.Value);
+
+        Assert.Equal(10, payload.QueuedTargetSeconds);
+        Assert.Equal(20, payload.PreparationBaseTargetSeconds);
+        Assert.Equal(30, payload.ReadyTargetSeconds);
     }
 }

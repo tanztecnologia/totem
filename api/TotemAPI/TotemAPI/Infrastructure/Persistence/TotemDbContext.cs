@@ -3,6 +3,7 @@ using TotemAPI.Features.Cart.Domain;
 using TotemAPI.Features.Catalog.Domain;
 using TotemAPI.Features.Checkout.Domain;
 using TotemAPI.Features.Identity.Domain;
+using TotemAPI.Features.Kitchen.Domain;
 
 namespace TotemAPI.Infrastructure.Persistence;
 
@@ -21,6 +22,7 @@ public sealed class TotemDbContext : DbContext
     public DbSet<PaymentRow> Payments => Set<PaymentRow>();
     public DbSet<CartRow> Carts => Set<CartRow>();
     public DbSet<CartItemRow> CartItems => Set<CartItemRow>();
+    public DbSet<KitchenSlaRow> KitchenSlas => Set<KitchenSlaRow>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -57,6 +59,7 @@ public sealed class TotemDbContext : DbContext
             b.Property(x => x.NormalizedCode).IsRequired();
             b.Property(x => x.Name).IsRequired();
             b.Property(x => x.PriceCents).IsRequired();
+            b.Property(x => x.AveragePrepSeconds);
             b.Property(x => x.ImageUrl);
             b.Property(x => x.IsActive).IsRequired();
             b.Property(x => x.CreatedAt).IsRequired();
@@ -85,6 +88,16 @@ public sealed class TotemDbContext : DbContext
             b.HasIndex(x => x.TenantId);
             b.HasIndex(x => new { x.TenantId, x.CreatedAt });
             b.HasIndex(x => new { x.TenantId, x.UpdatedAt });
+        });
+
+        modelBuilder.Entity<KitchenSlaRow>(b =>
+        {
+            b.ToTable("kitchen_sla");
+            b.HasKey(x => x.TenantId);
+            b.Property(x => x.QueuedTargetSeconds).IsRequired();
+            b.Property(x => x.PreparationBaseTargetSeconds).IsRequired();
+            b.Property(x => x.ReadyTargetSeconds).IsRequired();
+            b.Property(x => x.UpdatedAt).IsRequired();
         });
 
         modelBuilder.Entity<OrderItemRow>(b =>
@@ -183,6 +196,7 @@ public sealed class SkuRow
     public string NormalizedCode { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public int PriceCents { get; set; }
+    public int? AveragePrepSeconds { get; set; }
     public string? ImageUrl { get; set; }
     public bool IsActive { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
@@ -205,6 +219,15 @@ public sealed class OrderRow
     public DateTimeOffset? ReadyAt { get; set; }
     public DateTimeOffset? CompletedAt { get; set; }
     public DateTimeOffset? CancelledAt { get; set; }
+}
+
+public sealed class KitchenSlaRow
+{
+    public Guid TenantId { get; set; }
+    public int QueuedTargetSeconds { get; set; }
+    public int PreparationBaseTargetSeconds { get; set; }
+    public int ReadyTargetSeconds { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
 }
 
 public sealed class OrderItemRow
@@ -272,7 +295,18 @@ internal static class UserMapping
 internal static class SkuMapping
 {
     public static Sku ToDomain(this SkuRow row) =>
-        new(row.Id, row.TenantId, row.Code, row.Name, row.PriceCents, row.ImageUrl, row.IsActive, row.CreatedAt, row.UpdatedAt);
+        new(
+            row.Id,
+            row.TenantId,
+            row.Code,
+            row.Name,
+            row.PriceCents,
+            row.AveragePrepSeconds,
+            row.ImageUrl,
+            row.IsActive,
+            row.CreatedAt,
+            row.UpdatedAt
+        );
 
     public static string NormalizeCode(string code) => (code ?? string.Empty).Trim().ToUpperInvariant();
 }
@@ -296,6 +330,12 @@ internal static class OrderMapping
             row.CompletedAt,
             row.CancelledAt
         );
+}
+
+internal static class KitchenSlaMapping
+{
+    public static KitchenSla ToDomain(this KitchenSlaRow row) =>
+        new(row.TenantId, row.QueuedTargetSeconds, row.PreparationBaseTargetSeconds, row.ReadyTargetSeconds, row.UpdatedAt);
 }
 
 internal static class OrderItemMapping

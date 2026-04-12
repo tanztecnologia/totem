@@ -48,6 +48,7 @@ public sealed class EfSkuRepository : ISkuRepository
             NormalizedCode = SkuMapping.NormalizeCode(sku.Code),
             Name = sku.Name,
             PriceCents = sku.PriceCents,
+            AveragePrepSeconds = sku.AveragePrepSeconds,
             ImageUrl = sku.ImageUrl,
             IsActive = sku.IsActive,
             CreatedAt = sku.CreatedAt,
@@ -67,6 +68,7 @@ public sealed class EfSkuRepository : ISkuRepository
         row.NormalizedCode = SkuMapping.NormalizeCode(sku.Code);
         row.Name = sku.Name;
         row.PriceCents = sku.PriceCents;
+        row.AveragePrepSeconds = sku.AveragePrepSeconds;
         row.ImageUrl = sku.ImageUrl;
         row.IsActive = sku.IsActive;
         row.UpdatedAt = sku.UpdatedAt;
@@ -82,4 +84,3 @@ public sealed class EfSkuRepository : ISkuRepository
         await _db.SaveChangesAsync(ct);
     }
 }
-

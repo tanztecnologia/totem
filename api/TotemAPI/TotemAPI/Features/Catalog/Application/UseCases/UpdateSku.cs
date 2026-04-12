@@ -9,6 +9,7 @@ public sealed record UpdateSkuCommand(
     string Code,
     string Name,
     int PriceCents,
+    int? AveragePrepSeconds,
     string? ImageUrl,
     bool IsActive
 );
@@ -34,6 +35,8 @@ public sealed class UpdateSku
         if (code.Length < 2) throw new ArgumentException("Code inválido.");
         if (name.Length < 2) throw new ArgumentException("Name inválido.");
         if (command.PriceCents < 0) throw new ArgumentException("PriceCents inválido.");
+        if (command.AveragePrepSeconds is not null && command.AveragePrepSeconds <= 0)
+            throw new ArgumentException("AveragePrepSeconds inválido.");
 
         var current = await _skus.GetByIdAsync(command.TenantId, command.SkuId, ct);
         if (current is null) return null;
@@ -47,6 +50,7 @@ public sealed class UpdateSku
             Code: code,
             Name: name,
             PriceCents: command.PriceCents,
+            AveragePrepSeconds: command.AveragePrepSeconds,
             ImageUrl: imageUrl,
             IsActive: command.IsActive,
             CreatedAt: current.CreatedAt,
@@ -54,6 +58,6 @@ public sealed class UpdateSku
         );
 
         await _skus.UpdateAsync(updated, ct);
-        return new SkuResult(updated.Id, updated.TenantId, updated.Code, updated.Name, updated.PriceCents, updated.ImageUrl, updated.IsActive);
+        return new SkuResult(updated.Id, updated.TenantId, updated.Code, updated.Name, updated.PriceCents, updated.AveragePrepSeconds, updated.ImageUrl, updated.IsActive);
     }
 }

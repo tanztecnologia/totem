@@ -19,7 +19,7 @@ public sealed class ListSkus
 
         var list = await _skus.ListAsync(query.TenantId, ct);
         return list
-            .Select(s => new SkuResult(s.Id, s.TenantId, s.Code, s.Name, s.PriceCents, s.ImageUrl, s.IsActive))
+            .Select(s => new SkuResult(s.Id, s.TenantId, s.Code, s.Name, s.PriceCents, s.AveragePrepSeconds, s.ImageUrl, s.IsActive))
             .ToList();
     }
 }

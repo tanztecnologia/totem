@@ -16,6 +16,7 @@ using TotemAPI.Features.Identity.Application.UseCases;
 using TotemAPI.Features.Identity.Domain;
 using TotemAPI.Features.Identity.Infrastructure;
 using TotemAPI.Features.Kitchen.Application.UseCases;
+using TotemAPI.Features.Kitchen.Application.Abstractions;
 using TotemAPI.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -46,6 +47,7 @@ builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<ISkuRepository, EfSkuRepository>();
 builder.Services.AddScoped<ICheckoutRepository, EfCheckoutRepository>();
 builder.Services.AddScoped<ICartRepository, EfCartRepository>();
+builder.Services.AddScoped<IKitchenSlaRepository, EfKitchenSlaRepository>();
 builder.Services.AddSingleton<ITefPaymentService>(sp =>
 {
     var options = sp.GetRequiredService<IOptions<TefApiOptions>>().Value;
@@ -76,6 +78,8 @@ builder.Services.AddScoped<ClearCart>();
 builder.Services.AddScoped<ListKitchenOrders>();
 builder.Services.AddScoped<GetKitchenOrder>();
 builder.Services.AddScoped<UpdateKitchenOrderStatus>();
+builder.Services.AddScoped<GetKitchenSla>();
+builder.Services.AddScoped<UpsertKitchenSla>();
 
 var jwtSection = builder.Configuration.GetSection(JwtOptions.SectionName);
 var issuer = jwtSection.GetValue<string>("Issuer") ?? string.Empty;

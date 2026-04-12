@@ -6,6 +6,7 @@ public sealed record Sku(
     string Code,
     string Name,
     int PriceCents,
+    int? AveragePrepSeconds,
     string? ImageUrl,
     bool IsActive,
     DateTimeOffset CreatedAt,

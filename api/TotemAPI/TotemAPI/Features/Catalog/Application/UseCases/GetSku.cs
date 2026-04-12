@@ -20,6 +20,6 @@ public sealed class GetSku
 
         var sku = await _skus.GetByIdAsync(query.TenantId, query.SkuId, ct);
         if (sku is null) return null;
-        return new SkuResult(sku.Id, sku.TenantId, sku.Code, sku.Name, sku.PriceCents, sku.ImageUrl, sku.IsActive);
+        return new SkuResult(sku.Id, sku.TenantId, sku.Code, sku.Name, sku.PriceCents, sku.AveragePrepSeconds, sku.ImageUrl, sku.IsActive);
     }
 }

@@ -26,7 +26,7 @@ public sealed class CartUseCasesTests
         var tenantId = Guid.NewGuid();
 
         var sku = await createSku.HandleAsync(
-            new CreateSkuCommand(tenantId, "X-BURGER", "X Burger", 2500, null, true),
+            new CreateSkuCommand(tenantId, "X-BURGER", "X Burger", 2500, null, null, true),
             CancellationToken.None
         );
 
@@ -84,7 +84,7 @@ public sealed class CartUseCasesTests
         var tenantB = Guid.NewGuid();
 
         var skuA = await createSku.HandleAsync(
-            new CreateSkuCommand(tenantA, "X-BURGER", "X Burger", 2500, null, true),
+            new CreateSkuCommand(tenantA, "X-BURGER", "X Burger", 2500, null, null, true),
             CancellationToken.None
         );
 
@@ -109,7 +109,7 @@ public sealed class CartUseCasesTests
         var createSku = new CreateSku(skuRepo);
 
         var sku = await createSku.HandleAsync(
-            new CreateSkuCommand(tenantId, "X-BURGER", "X Burger", 2500, null, true),
+            new CreateSkuCommand(tenantId, "X-BURGER", "X Burger", 2500, null, null, true),
             CancellationToken.None
         );
 

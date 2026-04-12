@@ -1,5 +1,7 @@
+using TotemAPI.Features.Catalog.Application.Abstractions;
 using TotemAPI.Features.Checkout.Application.Abstractions;
 using TotemAPI.Features.Checkout.Domain;
+using TotemAPI.Features.Kitchen.Application.Abstractions;
 
 namespace TotemAPI.Features.Kitchen.Application.UseCases;
 
@@ -29,12 +31,16 @@ public sealed record GetKitchenOrderResult(
 
 public sealed class GetKitchenOrder
 {
-    public GetKitchenOrder(ICheckoutRepository checkout)
+    public GetKitchenOrder(ICheckoutRepository checkout, ISkuRepository skus, IKitchenSlaRepository slas)
     {
         _checkout = checkout;
+        _skus = skus;
+        _slas = slas;
     }
 
     private readonly ICheckoutRepository _checkout;
+    private readonly ISkuRepository _skus;
+    private readonly IKitchenSlaRepository _slas;
 
     public async Task<GetKitchenOrderResult?> HandleAsync(GetKitchenOrderQuery query, CancellationToken ct)
     {
@@ -51,7 +57,13 @@ public sealed class GetKitchenOrder
             .ToList();
 
         var now = DateTimeOffset.UtcNow;
-        var (elapsedSeconds, targetSeconds, isOverdue) = GetStageMetrics(order, now);
+        var sla = await LoadSlaOrDefaultAsync(query.TenantId, ct);
+        var skus = await _skus.ListAsync(query.TenantId, ct);
+        var averagePrepSecondsBySkuId = skus
+            .Where(x => x.AveragePrepSeconds is not null && x.AveragePrepSeconds > 0)
+            .ToDictionary(x => x.Id, x => x.AveragePrepSeconds!.Value);
+
+        var (elapsedSeconds, targetSeconds, isOverdue) = GetStageMetrics(order, items, averagePrepSecondsBySkuId, sla, now);
 
         return new GetKitchenOrderResult(
             OrderId: order.Id,
@@ -73,19 +85,75 @@ public sealed class GetKitchenOrder
         );
     }
 
-    private static (int elapsedSeconds, int targetSeconds, bool isOverdue) GetStageMetrics(Order order, DateTimeOffset now)
+    private static (int elapsedSeconds, int targetSeconds, bool isOverdue) GetStageMetrics(
+        Order order,
+        IReadOnlyList<OrderItem> items,
+        IReadOnlyDictionary<Guid, int> averagePrepSecondsBySkuId,
+        KitchenSlaResult sla,
+        DateTimeOffset now
+    )
     {
-        var (startAt, targetSeconds) = order.KitchenStatus switch
+        var targetSeconds = GetStageTargetSeconds(order, items, averagePrepSecondsBySkuId, sla);
+
+        var (startAt, targetAt) = order.KitchenStatus switch
         {
-            OrderKitchenStatus.Queued => (order.QueuedAt ?? order.UpdatedAt, 120),
-            OrderKitchenStatus.InPreparation => (order.InPreparationAt ?? order.UpdatedAt, 480),
-            OrderKitchenStatus.Ready => (order.ReadyAt ?? order.UpdatedAt, 120),
+            OrderKitchenStatus.Queued => (order.QueuedAt ?? order.UpdatedAt, targetSeconds),
+            OrderKitchenStatus.InPreparation => (order.InPreparationAt ?? order.UpdatedAt, targetSeconds),
+            OrderKitchenStatus.Ready => (order.ReadyAt ?? order.UpdatedAt, targetSeconds),
             _ => (order.UpdatedAt, 0),
         };
 
         var elapsed = now - startAt;
         var elapsedSeconds = (int)Math.Max(0, elapsed.TotalSeconds);
-        var isOverdue = targetSeconds > 0 && elapsedSeconds > targetSeconds;
-        return (elapsedSeconds, targetSeconds, isOverdue);
+        var isOverdue = targetAt > 0 && elapsedSeconds > targetAt;
+        return (elapsedSeconds, targetAt, isOverdue);
+    }
+
+    private static int GetStageTargetSeconds(
+        Order order,
+        IReadOnlyList<OrderItem> items,
+        IReadOnlyDictionary<Guid, int> averagePrepSecondsBySkuId,
+        KitchenSlaResult sla
+    )
+    {
+        return order.KitchenStatus switch
+        {
+            OrderKitchenStatus.Queued => sla.QueuedTargetSeconds,
+            OrderKitchenStatus.Ready => sla.ReadyTargetSeconds,
+            OrderKitchenStatus.InPreparation => Math.Max(sla.PreparationBaseTargetSeconds, ComputeSkuBasedPreparationSeconds(items, averagePrepSecondsBySkuId)),
+            _ => 0,
+        };
+    }
+
+    private static int ComputeSkuBasedPreparationSeconds(IReadOnlyList<OrderItem> items, IReadOnlyDictionary<Guid, int> averagePrepSecondsBySkuId)
+    {
+        var total = 0;
+        foreach (var item in items)
+        {
+            if (item.Quantity <= 0) continue;
+            if (!averagePrepSecondsBySkuId.TryGetValue(item.SkuId, out var perUnitSeconds)) continue;
+            if (perUnitSeconds <= 0) continue;
+
+            try
+            {
+                checked
+                {
+                    total += perUnitSeconds * item.Quantity;
+                }
+            }
+            catch (OverflowException)
+            {
+                return int.MaxValue;
+            }
+        }
+
+        return total;
+    }
+
+    private async Task<KitchenSlaResult> LoadSlaOrDefaultAsync(Guid tenantId, CancellationToken ct)
+    {
+        var existing = await _slas.GetAsync(tenantId, ct);
+        if (existing is null) return GetKitchenSla.Defaults();
+        return new KitchenSlaResult(existing.QueuedTargetSeconds, existing.PreparationBaseTargetSeconds, existing.ReadyTargetSeconds, existing.UpdatedAt);
     }
 }
