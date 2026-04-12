@@ -4,11 +4,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../domain/entities/checkout_item.dart';
 import '../../domain/entities/checkout_order.dart';
-import '../../domain/repositories/order_repository.dart';
-import '../../domain/services/payment_service.dart';
-import '../../domain/usecases/create_pix_charge.dart';
-import '../../domain/usecases/process_payment.dart';
-import '../../domain/usecases/place_order.dart';
+import '../../domain/services/checkout_service.dart';
+import '../../domain/usecases/confirm_payment.dart';
+import '../../domain/usecases/start_checkout.dart';
 import '../bloc/checkout_bloc.dart';
 
 class CheckoutDialog extends StatelessWidget {
@@ -16,8 +14,7 @@ class CheckoutDialog extends StatelessWidget {
     required this.items,
     required this.totalCents,
     required this.totalText,
-    required this.orderRepository,
-    required this.paymentService,
+    required this.checkoutService,
     required this.onSuccess,
     super.key,
   });
@@ -25,17 +22,15 @@ class CheckoutDialog extends StatelessWidget {
   final List<CheckoutItem> items;
   final int totalCents;
   final String totalText;
-  final OrderRepository orderRepository;
-  final PaymentService paymentService;
+  final CheckoutService checkoutService;
   final VoidCallback onSuccess;
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) => CheckoutBloc(
-        placeOrder: PlaceOrder(orderRepository),
-        createPixCharge: CreatePixCharge(paymentService),
-        processPayment: ProcessPayment(paymentService),
+        startCheckout: StartCheckout(checkoutService),
+        confirmPayment: ConfirmPayment(checkoutService),
       )..add(
           CheckoutStarted(
             items: items,

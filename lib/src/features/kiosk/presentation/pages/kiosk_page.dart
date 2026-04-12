@@ -4,8 +4,7 @@ import 'package:totem_ds/totem_ds.dart';
 
 import '../bloc/kiosk_bloc.dart';
 import '../../../checkout/domain/entities/checkout_item.dart';
-import '../../../checkout/domain/repositories/order_repository.dart';
-import '../../../checkout/domain/services/payment_service.dart';
+import '../../../checkout/domain/services/checkout_service.dart';
 import '../../../checkout/presentation/pages/checkout_dialog.dart';
 import '../../domain/entities/product.dart';
 
@@ -427,6 +426,10 @@ void _showCheckout(
         return CheckoutItem(
           id: e.key,
           title: product.name,
+          skuCodes: <String>[
+            product.baseSku.id,
+            ...line.addedSkuIds,
+          ],
           subtitle: subtitleForLine(product, line),
           quantity: e.value,
           unitPriceCents: unitCents,
@@ -437,8 +440,7 @@ void _showCheckout(
       .toList(growable: false)
     ..sort((a, b) => a.title.compareTo(b.title));
 
-  final orderRepository = context.read<OrderRepository>();
-  final paymentService = context.read<PaymentService>();
+  final checkoutService = context.read<CheckoutService>();
   final kioskBloc = context.read<KioskBloc>();
   final messenger = ScaffoldMessenger.of(context);
 
@@ -449,8 +451,7 @@ void _showCheckout(
         items: checkoutItems,
         totalCents: state.cartTotalCents,
         totalText: state.cartTotalFormatted,
-        orderRepository: orderRepository,
-        paymentService: paymentService,
+        checkoutService: checkoutService,
         onSuccess: () {
           kioskBloc.add(const KioskCartCleared());
           messenger.showSnackBar(

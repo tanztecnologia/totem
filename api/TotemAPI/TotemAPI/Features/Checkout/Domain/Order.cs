@@ -3,9 +3,11 @@ namespace TotemAPI.Features.Checkout.Domain;
 public sealed record Order(
     Guid Id,
     Guid TenantId,
+    Guid? CartId,
     OrderFulfillment Fulfillment,
     int TotalCents,
     OrderStatus Status,
-    DateTimeOffset CreatedAt
+    OrderKitchenStatus KitchenStatus,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt
 );
-

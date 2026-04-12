@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TotemAPI.Features.Cart.Domain;
 using TotemAPI.Features.Catalog.Domain;
 using TotemAPI.Features.Checkout.Domain;
 using TotemAPI.Features.Identity.Domain;
@@ -18,6 +19,8 @@ public sealed class TotemDbContext : DbContext
     public DbSet<OrderRow> Orders => Set<OrderRow>();
     public DbSet<OrderItemRow> OrderItems => Set<OrderItemRow>();
     public DbSet<PaymentRow> Payments => Set<PaymentRow>();
+    public DbSet<CartRow> Carts => Set<CartRow>();
+    public DbSet<CartItemRow> CartItems => Set<CartItemRow>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -67,12 +70,16 @@ public sealed class TotemDbContext : DbContext
             b.ToTable("orders");
             b.HasKey(x => x.Id);
             b.Property(x => x.TenantId).IsRequired();
+            b.Property(x => x.CartId);
             b.Property(x => x.Fulfillment).HasConversion<int>().IsRequired();
             b.Property(x => x.TotalCents).IsRequired();
             b.Property(x => x.Status).HasConversion<int>().IsRequired();
             b.Property(x => x.CreatedAt).IsRequired();
+            b.Property(x => x.KitchenStatus).HasConversion<int>().IsRequired();
+            b.Property(x => x.UpdatedAt).IsRequired();
             b.HasIndex(x => x.TenantId);
             b.HasIndex(x => new { x.TenantId, x.CreatedAt });
+            b.HasIndex(x => new { x.TenantId, x.UpdatedAt });
         });
 
         modelBuilder.Entity<OrderItemRow>(b =>
@@ -114,6 +121,33 @@ public sealed class TotemDbContext : DbContext
             b.HasIndex(x => x.OrderId);
             b.HasOne<OrderRow>().WithMany().HasForeignKey(x => x.OrderId).OnDelete(DeleteBehavior.Cascade);
         });
+
+        modelBuilder.Entity<CartRow>(b =>
+        {
+            b.ToTable("carts");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.TenantId).IsRequired();
+            b.Property(x => x.CreatedAt).IsRequired();
+            b.Property(x => x.UpdatedAt).IsRequired();
+            b.HasIndex(x => x.TenantId);
+            b.HasIndex(x => new { x.TenantId, x.UpdatedAt });
+        });
+
+        modelBuilder.Entity<CartItemRow>(b =>
+        {
+            b.ToTable("cart_items");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.TenantId).IsRequired();
+            b.Property(x => x.CartId).IsRequired();
+            b.Property(x => x.SkuId).IsRequired();
+            b.Property(x => x.Quantity).IsRequired();
+            b.Property(x => x.CreatedAt).IsRequired();
+            b.Property(x => x.UpdatedAt).IsRequired();
+            b.HasIndex(x => new { x.TenantId, x.CartId });
+            b.HasIndex(x => x.CartId);
+            b.HasIndex(x => new { x.TenantId, x.CartId, x.SkuId }).IsUnique();
+            b.HasOne<CartRow>().WithMany().HasForeignKey(x => x.CartId).OnDelete(DeleteBehavior.Cascade);
+        });
     }
 }
 
@@ -154,10 +188,13 @@ public sealed class OrderRow
 {
     public Guid Id { get; set; }
     public Guid TenantId { get; set; }
+    public Guid? CartId { get; set; }
     public OrderFulfillment Fulfillment { get; set; }
     public int TotalCents { get; set; }
     public OrderStatus Status { get; set; }
+    public OrderKitchenStatus KitchenStatus { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
 }
 
 public sealed class OrderItemRow
@@ -191,6 +228,25 @@ public sealed class PaymentRow
     public DateTimeOffset UpdatedAt { get; set; }
 }
 
+public sealed class CartRow
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
+}
+
+public sealed class CartItemRow
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid CartId { get; set; }
+    public Guid SkuId { get; set; }
+    public int Quantity { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
+}
+
 internal static class TenantMapping
 {
     public static Tenant ToDomain(this TenantRow row) => new(row.Id, row.Name, row.CreatedAt);
@@ -214,7 +270,7 @@ internal static class SkuMapping
 internal static class OrderMapping
 {
     public static Order ToDomain(this OrderRow row) =>
-        new(row.Id, row.TenantId, row.Fulfillment, row.TotalCents, row.Status, row.CreatedAt);
+        new(row.Id, row.TenantId, row.CartId, row.Fulfillment, row.TotalCents, row.Status, row.KitchenStatus, row.CreatedAt, row.UpdatedAt);
 }
 
 internal static class OrderItemMapping
@@ -249,6 +305,31 @@ internal static class PaymentMapping
             row.TransactionId,
             row.PixPayload,
             row.PixExpiresAt,
+            row.CreatedAt,
+            row.UpdatedAt
+        );
+}
+
+internal static class CartMapping
+{
+    public static ShoppingCart ToDomain(this CartRow row) =>
+        new(
+            row.Id,
+            row.TenantId,
+            row.CreatedAt,
+            row.UpdatedAt
+        );
+}
+
+internal static class CartItemMapping
+{
+    public static ShoppingCartItem ToDomain(this CartItemRow row) =>
+        new(
+            row.Id,
+            row.TenantId,
+            row.CartId,
+            row.SkuId,
+            row.Quantity,
             row.CreatedAt,
             row.UpdatedAt
         );

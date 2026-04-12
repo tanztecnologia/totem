@@ -20,10 +20,19 @@ public enum OrderStatus
     Cancelled = 3
 }
 
+public enum OrderKitchenStatus
+{
+    PendingPayment = 1,
+    Queued = 2,
+    InPreparation = 3,
+    Ready = 4,
+    Completed = 5,
+    Cancelled = 6
+}
+
 public enum PaymentStatus
 {
     Pending = 1,
     Approved = 2,
     Declined = 3
 }
-

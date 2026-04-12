@@ -19,6 +19,7 @@ class CheckoutState {
     required this.fulfillment,
     required this.paymentMethod,
     required this.pixCharge,
+    required this.paymentId,
     required this.paymentTransactionId,
     required this.isSubmitting,
     required this.isSuccess,
@@ -35,6 +36,7 @@ class CheckoutState {
       fulfillment: null,
       paymentMethod: null,
       pixCharge: null,
+      paymentId: null,
       paymentTransactionId: null,
       isSubmitting: false,
       isSuccess: false,
@@ -50,6 +52,7 @@ class CheckoutState {
   final OrderFulfillment? fulfillment;
   final PaymentMethod? paymentMethod;
   final PixCharge? pixCharge;
+  final String? paymentId;
   final String? paymentTransactionId;
   final bool isSubmitting;
   final bool isSuccess;
@@ -66,6 +69,7 @@ class CheckoutState {
     OrderFulfillment? fulfillment,
     PaymentMethod? paymentMethod,
     PixCharge? pixCharge,
+    String? paymentId,
     String? paymentTransactionId,
     bool? isSubmitting,
     bool? isSuccess,
@@ -80,6 +84,7 @@ class CheckoutState {
       fulfillment: fulfillment ?? this.fulfillment,
       paymentMethod: paymentMethod ?? this.paymentMethod,
       pixCharge: pixCharge ?? this.pixCharge,
+      paymentId: paymentId ?? this.paymentId,
       paymentTransactionId: paymentTransactionId ?? this.paymentTransactionId,
       isSubmitting: isSubmitting ?? this.isSubmitting,
       isSuccess: isSuccess ?? this.isSuccess,

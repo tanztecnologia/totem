@@ -1,5 +1,7 @@
 using TotemAPI.Features.Catalog.Application.UseCases;
 using TotemAPI.Features.Catalog.Infrastructure;
+using TotemAPI.Features.Cart.Application.UseCases;
+using TotemAPI.Features.Cart.Infrastructure;
 using TotemAPI.Features.Checkout.Application.UseCases;
 using TotemAPI.Features.Checkout.Domain;
 using TotemAPI.Features.Checkout.Infrastructure;
@@ -23,21 +25,25 @@ public sealed class CheckoutUseCasesTests
         );
 
         var checkoutRepo = new InMemoryCheckoutRepository();
+        var cartRepo = new InMemoryCartRepository();
         var tef = new FakeTefPaymentService();
 
-        var startCheckout = new StartCheckout(skuRepo, checkoutRepo, tef);
-        var confirmPayment = new ConfirmPayment(checkoutRepo, tef);
+        var createCart = new CreateCart(cartRepo);
+        var setItem = new SetCartItem(cartRepo, skuRepo);
+
+        var cart = await createCart.HandleAsync(new CreateCartCommand(tenantId), CancellationToken.None);
+        await setItem.HandleAsync(new SetCartItemCommand(tenantId, cart.Id, sku.Id, 2), CancellationToken.None);
+
+        var startCheckout = new StartCheckout(skuRepo, checkoutRepo, tef, cartRepo);
+        var confirmPayment = new ConfirmPayment(checkoutRepo, tef, cartRepo);
         var getOrder = new GetOrder(checkoutRepo);
 
         var started = await startCheckout.HandleAsync(
             new StartCheckoutCommand(
                 TenantId: tenantId,
+                CartId: cart.Id,
                 Fulfillment: OrderFulfillment.DineIn,
-                PaymentMethod: PaymentMethod.Pix,
-                Items: new[]
-                {
-                    new StartCheckoutItem(sku.Id, 2)
-                }
+                PaymentMethod: PaymentMethod.Pix
             ),
             CancellationToken.None
         );
@@ -78,20 +84,24 @@ public sealed class CheckoutUseCasesTests
         );
 
         var checkoutRepo = new InMemoryCheckoutRepository();
+        var cartRepo = new InMemoryCartRepository();
         var tef = new FakeTefPaymentService();
 
-        var startCheckout = new StartCheckout(skuRepo, checkoutRepo, tef);
-        var confirmPayment = new ConfirmPayment(checkoutRepo, tef);
+        var createCart = new CreateCart(cartRepo);
+        var setItem = new SetCartItem(cartRepo, skuRepo);
+
+        var cart = await createCart.HandleAsync(new CreateCartCommand(tenantId), CancellationToken.None);
+        await setItem.HandleAsync(new SetCartItemCommand(tenantId, cart.Id, sku.Id, 1), CancellationToken.None);
+
+        var startCheckout = new StartCheckout(skuRepo, checkoutRepo, tef, cartRepo);
+        var confirmPayment = new ConfirmPayment(checkoutRepo, tef, cartRepo);
 
         var started = await startCheckout.HandleAsync(
             new StartCheckoutCommand(
                 TenantId: tenantId,
+                CartId: cart.Id,
                 Fulfillment: OrderFulfillment.TakeAway,
-                PaymentMethod: PaymentMethod.CreditCard,
-                Items: new[]
-                {
-                    new StartCheckoutItem(sku.Id, 1)
-                }
+                PaymentMethod: PaymentMethod.CreditCard
             ),
             CancellationToken.None
         );
@@ -126,20 +136,24 @@ public sealed class CheckoutUseCasesTests
         );
 
         var checkoutRepo = new InMemoryCheckoutRepository();
+        var cartRepo = new InMemoryCartRepository();
         var tef = new FakeTefPaymentService();
 
-        var startCheckout = new StartCheckout(skuRepo, checkoutRepo, tef);
-        var confirmPayment = new ConfirmPayment(checkoutRepo, tef);
+        var createCart = new CreateCart(cartRepo);
+        var setItem = new SetCartItem(cartRepo, skuRepo);
+
+        var cart = await createCart.HandleAsync(new CreateCartCommand(tenantA), CancellationToken.None);
+        await setItem.HandleAsync(new SetCartItemCommand(tenantA, cart.Id, sku.Id, 1), CancellationToken.None);
+
+        var startCheckout = new StartCheckout(skuRepo, checkoutRepo, tef, cartRepo);
+        var confirmPayment = new ConfirmPayment(checkoutRepo, tef, cartRepo);
 
         var started = await startCheckout.HandleAsync(
             new StartCheckoutCommand(
                 TenantId: tenantA,
+                CartId: cart.Id,
                 Fulfillment: OrderFulfillment.DineIn,
-                PaymentMethod: PaymentMethod.Pix,
-                Items: new[]
-                {
-                    new StartCheckoutItem(sku.Id, 1)
-                }
+                PaymentMethod: PaymentMethod.Pix
             ),
             CancellationToken.None
         );
@@ -152,4 +166,3 @@ public sealed class CheckoutUseCasesTests
         Assert.Null(confirmedOtherTenant);
     }
 }
-

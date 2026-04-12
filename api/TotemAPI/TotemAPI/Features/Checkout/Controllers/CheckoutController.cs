@@ -27,9 +27,9 @@ public sealed class CheckoutController : ControllerBase
             var result = await startCheckout.HandleAsync(
                 new StartCheckoutCommand(
                     TenantId: tenantId,
+                    CartId: request.CartId,
                     Fulfillment: request.Fulfillment,
-                    PaymentMethod: request.PaymentMethod,
-                    Items: request.Items
+                    PaymentMethod: request.PaymentMethod
                 ),
                 ct
             );
@@ -111,8 +111,7 @@ public sealed class CheckoutController : ControllerBase
 }
 
 public sealed record StartCheckoutRequest(
+    Guid CartId,
     OrderFulfillment Fulfillment,
-    PaymentMethod PaymentMethod,
-    IReadOnlyList<StartCheckoutItem> Items
+    PaymentMethod PaymentMethod
 );
-

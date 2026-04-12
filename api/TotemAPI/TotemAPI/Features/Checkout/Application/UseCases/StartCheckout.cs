@@ -1,19 +1,15 @@
 using TotemAPI.Features.Catalog.Application.Abstractions;
+using TotemAPI.Features.Cart.Application.Abstractions;
 using TotemAPI.Features.Checkout.Application.Abstractions;
 using TotemAPI.Features.Checkout.Domain;
 
 namespace TotemAPI.Features.Checkout.Application.UseCases;
 
-public sealed record StartCheckoutItem(
-    Guid SkuId,
-    int Quantity
-);
-
 public sealed record StartCheckoutCommand(
     Guid TenantId,
+    Guid CartId,
     OrderFulfillment Fulfillment,
-    PaymentMethod PaymentMethod,
-    IReadOnlyList<StartCheckoutItem> Items
+    PaymentMethod PaymentMethod
 );
 
 public sealed record CheckoutOrderItemResult(
@@ -51,31 +47,40 @@ public sealed class StartCheckout
     public StartCheckout(
         ISkuRepository skus,
         ICheckoutRepository checkout,
-        ITefPaymentService tef
+        ITefPaymentService tef,
+        ICartRepository carts
     )
     {
         _skus = skus;
         _checkout = checkout;
         _tef = tef;
+        _carts = carts;
     }
 
     private readonly ISkuRepository _skus;
     private readonly ICheckoutRepository _checkout;
     private readonly ITefPaymentService _tef;
+    private readonly ICartRepository _carts;
 
     public async Task<StartCheckoutResult> HandleAsync(StartCheckoutCommand command, CancellationToken ct)
     {
         if (command.TenantId == Guid.Empty) throw new ArgumentException("TenantId inválido.");
-        if (command.Items is null || command.Items.Count == 0) throw new ArgumentException("Items inválido.");
+        if (command.CartId == Guid.Empty) throw new ArgumentException("CartId inválido.");
+
+        var cart = await _carts.GetAsync(command.TenantId, command.CartId, ct);
+        if (cart is null) throw new InvalidOperationException("Carrinho não encontrado.");
+
+        var cartItems = await _carts.ListItemsAsync(command.TenantId, command.CartId, ct);
+        if (cartItems.Count == 0) throw new ArgumentException("Itens vazios.");
 
         var now = DateTimeOffset.UtcNow;
         var orderId = Guid.NewGuid();
 
-        var items = new List<OrderItem>(command.Items.Count);
-        var itemResults = new List<CheckoutOrderItemResult>(command.Items.Count);
+        var items = new List<OrderItem>(cartItems.Count);
+        var itemResults = new List<CheckoutOrderItemResult>(cartItems.Count);
 
         var totalCents = 0;
-        foreach (var item in command.Items)
+        foreach (var item in cartItems)
         {
             if (item.SkuId == Guid.Empty) throw new ArgumentException("SkuId inválido.");
             if (item.Quantity <= 0) throw new ArgumentException("Quantity inválido.");
@@ -122,10 +127,13 @@ public sealed class StartCheckout
         var order = new Order(
             Id: orderId,
             TenantId: command.TenantId,
+            CartId: command.CartId,
             Fulfillment: command.Fulfillment,
             TotalCents: totalCents,
             Status: OrderStatus.Created,
-            CreatedAt: now
+            KitchenStatus: OrderKitchenStatus.PendingPayment,
+            CreatedAt: now,
+            UpdatedAt: now
         );
 
         var paymentId = Guid.NewGuid();
@@ -193,4 +201,3 @@ public sealed class StartCheckout
         );
     }
 }
-

@@ -3,21 +3,17 @@ import 'package:totem/src/features/checkout/domain/entities/checkout_item.dart';
 import 'package:totem/src/features/checkout/domain/entities/checkout_order.dart';
 import 'package:totem/src/features/checkout/domain/entities/payment_result.dart';
 import 'package:totem/src/features/checkout/domain/entities/pix_charge.dart';
-import 'package:totem/src/features/checkout/domain/repositories/order_repository.dart';
-import 'package:totem/src/features/checkout/domain/services/payment_service.dart';
-import 'package:totem/src/features/checkout/domain/usecases/create_pix_charge.dart';
-import 'package:totem/src/features/checkout/domain/usecases/process_payment.dart';
-import 'package:totem/src/features/checkout/domain/usecases/place_order.dart';
+import 'package:totem/src/features/checkout/domain/services/checkout_service.dart';
+import 'package:totem/src/features/checkout/domain/usecases/confirm_payment.dart';
+import 'package:totem/src/features/checkout/domain/usecases/start_checkout.dart';
 import 'package:totem/src/features/checkout/presentation/bloc/checkout_bloc.dart';
 
 void main() {
   test('CheckoutBloc finaliza com sucesso após pagamento aprovado (cartão)', () async {
-    final orderRepository = _FakeOrderRepository();
-    final paymentService = _PaymentServiceApproved();
+    final checkoutService = _CheckoutServiceApproved();
     final bloc = CheckoutBloc(
-      placeOrder: PlaceOrder(orderRepository),
-      createPixCharge: CreatePixCharge(paymentService),
-      processPayment: ProcessPayment(paymentService),
+      startCheckout: StartCheckout(checkoutService),
+      confirmPayment: ConfirmPayment(checkoutService),
     );
     addTearDown(bloc.close);
 
@@ -27,6 +23,7 @@ void main() {
           CheckoutItem(
             id: 'line-1',
             title: 'Hambúrguer',
+            skuCodes: <String>['X-BURGER'],
             quantity: 2,
             unitPriceCents: 1000,
           ),
@@ -50,20 +47,16 @@ void main() {
     bloc.add(const CheckoutConfirmed());
     await bloc.stream.firstWhere((s) => s.isSuccess);
 
-    expect(orderRepository.orders, hasLength(1));
-    final saved = orderRepository.orders.single;
-    expect(saved.totalCents, 2000);
-    expect(saved.fulfillment, OrderFulfillment.dineIn);
-    expect(saved.paymentMethod, PaymentMethod.creditCard);
+    expect(checkoutService.lastItems, isNotEmpty);
+    expect(checkoutService.lastFulfillment, OrderFulfillment.dineIn);
+    expect(checkoutService.lastPaymentMethod, PaymentMethod.creditCard);
   });
 
   test('CheckoutBloc não finaliza quando pagamento é negado', () async {
-    final orderRepository = _FakeOrderRepository();
-    final paymentService = _PaymentServiceDeclined();
+    final checkoutService = _CheckoutServiceDeclined();
     final bloc = CheckoutBloc(
-      placeOrder: PlaceOrder(orderRepository),
-      createPixCharge: CreatePixCharge(paymentService),
-      processPayment: ProcessPayment(paymentService),
+      startCheckout: StartCheckout(checkoutService),
+      confirmPayment: ConfirmPayment(checkoutService),
     );
     addTearDown(bloc.close);
 
@@ -73,6 +66,7 @@ void main() {
           CheckoutItem(
             id: 'line-1',
             title: 'Hambúrguer',
+            skuCodes: <String>['X-BURGER'],
             quantity: 1,
             unitPriceCents: 1000,
           ),
@@ -93,16 +87,13 @@ void main() {
     await bloc.stream.firstWhere((s) => !s.isSubmitting && s.errorMessage != null);
 
     expect(bloc.state.isSuccess, false);
-    expect(orderRepository.orders, isEmpty);
   });
 
   test('CheckoutBloc ignora confirmação sem seleção completa', () async {
-    final orderRepository = _FakeOrderRepository();
-    final paymentService = _PaymentServiceApproved();
+    final checkoutService = _CheckoutServiceApproved();
     final bloc = CheckoutBloc(
-      placeOrder: PlaceOrder(orderRepository),
-      createPixCharge: CreatePixCharge(paymentService),
-      processPayment: ProcessPayment(paymentService),
+      startCheckout: StartCheckout(checkoutService),
+      confirmPayment: ConfirmPayment(checkoutService),
     );
     addTearDown(bloc.close);
 
@@ -112,6 +103,7 @@ void main() {
           CheckoutItem(
             id: 'line-1',
             title: 'Hambúrguer',
+            skuCodes: <String>['X-BURGER'],
             quantity: 1,
             unitPriceCents: 1000,
           ),
@@ -127,16 +119,13 @@ void main() {
 
     expect(bloc.state.isSubmitting, false);
     expect(bloc.state.isSuccess, false);
-    expect(orderRepository.orders, isEmpty);
   });
 
   test('CheckoutBloc no Pix gera cobrança e só finaliza após confirmar pagamento', () async {
-    final orderRepository = _FakeOrderRepository();
-    final paymentService = _PaymentServiceApproved();
+    final checkoutService = _CheckoutServiceApproved();
     final bloc = CheckoutBloc(
-      placeOrder: PlaceOrder(orderRepository),
-      createPixCharge: CreatePixCharge(paymentService),
-      processPayment: ProcessPayment(paymentService),
+      startCheckout: StartCheckout(checkoutService),
+      confirmPayment: ConfirmPayment(checkoutService),
     );
     addTearDown(bloc.close);
 
@@ -146,6 +135,7 @@ void main() {
           CheckoutItem(
             id: 'line-1',
             title: 'Hambúrguer',
+            skuCodes: <String>['X-BURGER'],
             quantity: 2,
             unitPriceCents: 1000,
           ),
@@ -166,68 +156,62 @@ void main() {
     await bloc.stream.firstWhere((s) => s.step == CheckoutStep.pixQr && s.pixCharge != null && !s.isSubmitting);
 
     expect(bloc.state.isSuccess, false);
-    expect(orderRepository.orders, isEmpty);
 
     bloc.add(const CheckoutPixPaymentConfirmed());
     await bloc.stream.firstWhere((s) => s.isSuccess);
 
-    expect(orderRepository.orders, hasLength(1));
-    expect(orderRepository.orders.single.paymentMethod, PaymentMethod.pix);
+    expect(checkoutService.confirmations, 1);
   });
 }
 
-class _FakeOrderRepository implements OrderRepository {
-  final List<CheckoutOrder> orders = <CheckoutOrder>[];
+class _CheckoutServiceApproved implements CheckoutService {
+  int confirmations = 0;
+  List<CheckoutItem> lastItems = <CheckoutItem>[];
+  OrderFulfillment? lastFulfillment;
+  PaymentMethod? lastPaymentMethod;
 
   @override
-  Future<String> placeOrder(CheckoutOrder order) async {
-    orders.add(order);
-    return orders.length.toString();
-  }
-}
-
-class _PaymentServiceApproved implements PaymentService {
-  @override
-  Future<PixCharge> createPixCharge({
-    required int amountCents,
-    required String reference,
+  Future<CheckoutStartResult> startCheckout({
+    required List<CheckoutItem> items,
+    required OrderFulfillment fulfillment,
+    required PaymentMethod paymentMethod,
   }) async {
-    return PixCharge(
-      amountCents: amountCents,
-      payload: 'payload-$reference',
-      expiresAt: DateTime.now().add(const Duration(minutes: 5)),
-      reference: reference,
+    lastItems = items;
+    lastFulfillment = fulfillment;
+    lastPaymentMethod = paymentMethod;
+    return CheckoutStartResult(
+      orderId: 'order-1',
+      paymentId: 'payment-1',
+      pixCharge: paymentMethod == PaymentMethod.pix
+          ? PixCharge(
+              amountCents: 2000,
+              payload: 'payload-order-1',
+              expiresAt: DateTime.now().add(const Duration(minutes: 5)),
+              reference: 'order-1',
+            )
+          : null,
     );
   }
 
   @override
-  Future<PaymentResult> pay({
-    required int amountCents,
-    required PaymentMethod method,
-  }) async {
+  Future<PaymentResult> confirmPayment({required String paymentId}) async {
+    confirmations += 1;
     return const PaymentResult(isApproved: true, transactionId: 'tx-1', message: 'APROVADO');
   }
 }
 
-class _PaymentServiceDeclined implements PaymentService {
+class _CheckoutServiceDeclined implements CheckoutService {
   @override
-  Future<PixCharge> createPixCharge({
-    required int amountCents,
-    required String reference,
+  Future<CheckoutStartResult> startCheckout({
+    required List<CheckoutItem> items,
+    required OrderFulfillment fulfillment,
+    required PaymentMethod paymentMethod,
   }) async {
-    return PixCharge(
-      amountCents: amountCents,
-      payload: 'payload-$reference',
-      expiresAt: DateTime.now().add(const Duration(minutes: 5)),
-      reference: reference,
-    );
+    return const CheckoutStartResult(orderId: 'order-1', paymentId: 'payment-1', pixCharge: null);
   }
 
   @override
-  Future<PaymentResult> pay({
-    required int amountCents,
-    required PaymentMethod method,
-  }) async {
+  Future<PaymentResult> confirmPayment({required String paymentId}) async {
     return const PaymentResult(isApproved: false, message: 'NEGADO');
   }
 }

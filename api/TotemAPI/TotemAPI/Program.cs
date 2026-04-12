@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.Options;
+using TotemAPI.Features.Cart.Application.Abstractions;
+using TotemAPI.Features.Cart.Application.UseCases;
 using TotemAPI.Features.Catalog.Application.Abstractions;
 using TotemAPI.Features.Catalog.Application.UseCases;
 using TotemAPI.Features.Checkout.Application.Abstractions;
@@ -11,7 +13,9 @@ using TotemAPI.Features.Checkout.Application.UseCases;
 using TotemAPI.Features.Checkout.Infrastructure;
 using TotemAPI.Features.Identity.Application.Abstractions;
 using TotemAPI.Features.Identity.Application.UseCases;
+using TotemAPI.Features.Identity.Domain;
 using TotemAPI.Features.Identity.Infrastructure;
+using TotemAPI.Features.Kitchen.Application.UseCases;
 using TotemAPI.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -41,6 +45,7 @@ builder.Services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
 builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<ISkuRepository, EfSkuRepository>();
 builder.Services.AddScoped<ICheckoutRepository, EfCheckoutRepository>();
+builder.Services.AddScoped<ICartRepository, EfCartRepository>();
 builder.Services.AddSingleton<ITefPaymentService>(sp =>
 {
     var options = sp.GetRequiredService<IOptions<TefApiOptions>>().Value;
@@ -63,6 +68,14 @@ builder.Services.AddScoped<DeleteSku>();
 builder.Services.AddScoped<StartCheckout>();
 builder.Services.AddScoped<ConfirmPayment>();
 builder.Services.AddScoped<GetOrder>();
+builder.Services.AddScoped<CreateCart>();
+builder.Services.AddScoped<GetCart>();
+builder.Services.AddScoped<SetCartItem>();
+builder.Services.AddScoped<ClearCart>();
+
+builder.Services.AddScoped<ListKitchenOrders>();
+builder.Services.AddScoped<GetKitchenOrder>();
+builder.Services.AddScoped<UpdateKitchenOrderStatus>();
 
 var jwtSection = builder.Configuration.GetSection(JwtOptions.SectionName);
 var issuer = jwtSection.GetValue<string>("Issuer") ?? string.Empty;
@@ -101,6 +114,54 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<TotemDbContext>();
     db.Database.Migrate();
+
+    if (app.Environment.IsDevelopment())
+    {
+        var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
+        var tenant = db.Tenants.FirstOrDefault(x => x.NormalizedName == "EMPRESA X");
+        if (tenant is not null)
+        {
+            var createdAt = DateTimeOffset.UtcNow;
+
+            var adminEmail = "admin@empresax.local";
+            var adminNormalizedEmail = adminEmail.Trim().ToLowerInvariant();
+            if (!db.Users.Any(x => x.TenantId == tenant.Id && x.NormalizedEmail == adminNormalizedEmail))
+            {
+                db.Users.Add(
+                    new UserRow
+                    {
+                        Id = Guid.NewGuid(),
+                        TenantId = tenant.Id,
+                        Email = adminEmail,
+                        NormalizedEmail = adminNormalizedEmail,
+                        PasswordHash = passwordHasher.Hash("123456"),
+                        Role = UserRole.Admin,
+                        CreatedAt = createdAt
+                    }
+                );
+            }
+
+            var staffEmail = "staff@empresax.local";
+            var staffNormalizedEmail = staffEmail.Trim().ToLowerInvariant();
+            if (!db.Users.Any(x => x.TenantId == tenant.Id && x.NormalizedEmail == staffNormalizedEmail))
+            {
+                db.Users.Add(
+                    new UserRow
+                    {
+                        Id = Guid.NewGuid(),
+                        TenantId = tenant.Id,
+                        Email = staffEmail,
+                        NormalizedEmail = staffNormalizedEmail,
+                        PasswordHash = passwordHasher.Hash("123456"),
+                        Role = UserRole.Staff,
+                        CreatedAt = createdAt
+                    }
+                );
+            }
+
+            db.SaveChanges();
+        }
+    }
 }
 
 app.UseAuthentication();

@@ -1,5 +1,6 @@
 using TotemAPI.Features.Checkout.Application.Abstractions;
 using TotemAPI.Features.Checkout.Domain;
+using TotemAPI.Features.Cart.Application.Abstractions;
 
 namespace TotemAPI.Features.Checkout.Application.UseCases;
 
@@ -18,15 +19,18 @@ public sealed class ConfirmPayment
 {
     public ConfirmPayment(
         ICheckoutRepository checkout,
-        ITefPaymentService tef
+        ITefPaymentService tef,
+        ICartRepository carts
     )
     {
         _checkout = checkout;
         _tef = tef;
+        _carts = carts;
     }
 
     private readonly ICheckoutRepository _checkout;
     private readonly ITefPaymentService _tef;
+    private readonly ICartRepository _carts;
 
     public async Task<ConfirmPaymentResult?> HandleAsync(ConfirmPaymentCommand command, CancellationToken ct)
     {
@@ -73,11 +77,24 @@ public sealed class ConfirmPayment
         var newOrder = order;
         if (confirmation.IsApproved && order.Status != OrderStatus.Paid)
         {
-            newOrder = order with { Status = OrderStatus.Paid };
+            var nextKitchenStatus = order.KitchenStatus == OrderKitchenStatus.PendingPayment
+                ? OrderKitchenStatus.Queued
+                : order.KitchenStatus;
+            newOrder = order with { Status = OrderStatus.Paid, KitchenStatus = nextKitchenStatus, UpdatedAt = now };
+        }
+        else if (confirmation.IsApproved && order.UpdatedAt != now)
+        {
+            newOrder = order with { UpdatedAt = now };
         }
 
         await _checkout.UpdatePaymentAsync(newPayment, ct);
         if (newOrder != order) await _checkout.UpdateOrderAsync(newOrder, ct);
+
+        if (confirmation.IsApproved && newOrder.CartId is not null)
+        {
+            await _carts.ClearAsync(command.TenantId, newOrder.CartId.Value, ct);
+            await _carts.TouchAsync(command.TenantId, newOrder.CartId.Value, DateTimeOffset.UtcNow, ct);
+        }
 
         return new ConfirmPaymentResult(
             OrderId: newOrder.Id,
@@ -96,4 +113,3 @@ public sealed class ConfirmPayment
         );
     }
 }
-

@@ -1,9 +1,8 @@
 import 'package:bloc/bloc.dart';
 
 import '../../domain/entities/checkout_order.dart';
-import '../../domain/usecases/create_pix_charge.dart';
-import '../../domain/usecases/process_payment.dart';
-import '../../domain/usecases/place_order.dart';
+import '../../domain/usecases/confirm_payment.dart';
+import '../../domain/usecases/start_checkout.dart';
 import 'checkout_event.dart';
 import 'checkout_state.dart';
 
@@ -12,12 +11,10 @@ export 'checkout_state.dart';
 
 class CheckoutBloc extends Bloc<CheckoutEvent, CheckoutState> {
   CheckoutBloc({
-    required PlaceOrder placeOrder,
-    required CreatePixCharge createPixCharge,
-    required ProcessPayment processPayment,
-  })  : _placeOrder = placeOrder,
-        _createPixCharge = createPixCharge,
-        _processPayment = processPayment,
+    required StartCheckout startCheckout,
+    required ConfirmPayment confirmPayment,
+  })  : _startCheckout = startCheckout,
+        _confirmPayment = confirmPayment,
         super(CheckoutState.initial()) {
     on<CheckoutStarted>(_onStarted);
     on<CheckoutFulfillmentSelected>(_onFulfillmentSelected);
@@ -27,9 +24,8 @@ class CheckoutBloc extends Bloc<CheckoutEvent, CheckoutState> {
     on<CheckoutPixPaymentConfirmed>(_onPixPaymentConfirmed);
   }
 
-  final PlaceOrder _placeOrder;
-  final CreatePixCharge _createPixCharge;
-  final ProcessPayment _processPayment;
+  final StartCheckout _startCheckout;
+  final ConfirmPayment _confirmPayment;
 
   void _onStarted(
     CheckoutStarted event,
@@ -45,6 +41,7 @@ class CheckoutBloc extends Bloc<CheckoutEvent, CheckoutState> {
         paymentMethod: null,
         pixCharge: null,
         paymentTransactionId: null,
+        paymentId: null,
         isSubmitting: false,
         isSuccess: false,
         orderId: null,
@@ -73,9 +70,26 @@ class CheckoutBloc extends Bloc<CheckoutEvent, CheckoutState> {
   ) {
     if (state.isSubmitting) return;
     if (state.step == CheckoutStep.pixQr) {
-      emit(state.copyWith(step: CheckoutStep.payment, pixCharge: null, paymentTransactionId: null, errorMessage: null));
+      emit(
+        state.copyWith(
+          step: CheckoutStep.payment,
+          pixCharge: null,
+          paymentTransactionId: null,
+          paymentId: null,
+          orderId: null,
+          errorMessage: null,
+        ),
+      );
     } else if (state.step == CheckoutStep.cardPrompt) {
-      emit(state.copyWith(step: CheckoutStep.payment, paymentTransactionId: null, errorMessage: null));
+      emit(
+        state.copyWith(
+          step: CheckoutStep.payment,
+          paymentTransactionId: null,
+          paymentId: null,
+          orderId: null,
+          errorMessage: null,
+        ),
+      );
     } else if (state.step == CheckoutStep.payment) {
       emit(
         state.copyWith(
@@ -83,6 +97,8 @@ class CheckoutBloc extends Bloc<CheckoutEvent, CheckoutState> {
           paymentMethod: null,
           pixCharge: null,
           paymentTransactionId: null,
+          paymentId: null,
+          orderId: null,
           errorMessage: null,
         ),
       );
@@ -102,46 +118,72 @@ class CheckoutBloc extends Bloc<CheckoutEvent, CheckoutState> {
 
     if (paymentMethod == PaymentMethod.pix) {
       emit(state.copyWith(isSubmitting: true, errorMessage: null));
-      final charge = await _createPixCharge(
-        amountCents: state.totalCents,
-        reference: 'order-${DateTime.now().millisecondsSinceEpoch}',
-      );
-      emit(state.copyWith(isSubmitting: false, step: CheckoutStep.pixQr, pixCharge: charge));
+      try {
+        final started = await _startCheckout(
+          items: state.items,
+          fulfillment: fulfillment,
+          paymentMethod: PaymentMethod.pix,
+        );
+        emit(
+          state.copyWith(
+            isSubmitting: false,
+            step: CheckoutStep.pixQr,
+            pixCharge: started.pixCharge,
+            paymentId: started.paymentId,
+            orderId: started.orderId,
+          ),
+        );
+      } catch (e) {
+        emit(state.copyWith(isSubmitting: false, errorMessage: e.toString()));
+      }
       return;
     }
 
     emit(state.copyWith(isSubmitting: true, step: CheckoutStep.cardPrompt, errorMessage: null));
 
-    final payment = await _processPayment(amountCents: state.totalCents, method: paymentMethod);
-    if (!payment.isApproved) {
+    try {
+      final started = await _startCheckout(
+        items: state.items,
+        fulfillment: fulfillment,
+        paymentMethod: paymentMethod,
+      );
+
+      final payment = await _confirmPayment(paymentId: started.paymentId);
+      if (!payment.isApproved) {
+        emit(
+          state.copyWith(
+            step: CheckoutStep.payment,
+            isSubmitting: false,
+            paymentId: null,
+            orderId: null,
+            paymentTransactionId: payment.transactionId,
+            errorMessage: payment.message ?? 'Pagamento não aprovado',
+          ),
+        );
+        return;
+      }
+
+      emit(
+        state.copyWith(
+          isSubmitting: false,
+          isSuccess: true,
+          paymentId: started.paymentId,
+          orderId: started.orderId,
+          paymentTransactionId: payment.transactionId,
+          step: CheckoutStep.success,
+        ),
+      );
+    } catch (e) {
       emit(
         state.copyWith(
           step: CheckoutStep.payment,
           isSubmitting: false,
-          paymentTransactionId: payment.transactionId,
-          errorMessage: payment.message ?? 'Pagamento não aprovado',
+          paymentId: null,
+          orderId: null,
+          errorMessage: e.toString(),
         ),
       );
-      return;
     }
-
-    final orderId = await _placeOrder(
-      CheckoutOrder(
-        items: state.items,
-        totalCents: state.totalCents,
-        fulfillment: fulfillment,
-        paymentMethod: paymentMethod,
-      ),
-    );
-    emit(
-      state.copyWith(
-        isSubmitting: false,
-        isSuccess: true,
-        orderId: orderId,
-        paymentTransactionId: payment.transactionId,
-        step: CheckoutStep.success,
-      ),
-    );
   }
 
   Future<void> _onPixPaymentConfirmed(
@@ -150,41 +192,38 @@ class CheckoutBloc extends Bloc<CheckoutEvent, CheckoutState> {
   ) async {
     if (state.isSubmitting) return;
     if (state.items.isEmpty) return;
-    final fulfillment = state.fulfillment;
-    final paymentMethod = state.paymentMethod;
-    if (fulfillment == null || paymentMethod != PaymentMethod.pix) return;
+    if (state.paymentMethod != PaymentMethod.pix) return;
     if (state.step != CheckoutStep.pixQr) return;
+    final paymentId = state.paymentId;
+    final orderId = state.orderId;
+    if (paymentId == null || orderId == null) return;
 
     emit(state.copyWith(isSubmitting: true, errorMessage: null));
 
-    final payment = await _processPayment(amountCents: state.totalCents, method: PaymentMethod.pix);
-    if (!payment.isApproved) {
+    try {
+      final payment = await _confirmPayment(paymentId: paymentId);
+      if (!payment.isApproved) {
+        emit(
+          state.copyWith(
+            isSubmitting: false,
+            paymentTransactionId: payment.transactionId,
+            errorMessage: payment.message ?? 'Pagamento não aprovado',
+          ),
+        );
+        return;
+      }
+
       emit(
         state.copyWith(
           isSubmitting: false,
+          isSuccess: true,
+          orderId: orderId,
           paymentTransactionId: payment.transactionId,
-          errorMessage: payment.message ?? 'Pagamento não aprovado',
+          step: CheckoutStep.success,
         ),
       );
-      return;
+    } catch (e) {
+      emit(state.copyWith(isSubmitting: false, errorMessage: e.toString()));
     }
-
-    final orderId = await _placeOrder(
-      CheckoutOrder(
-        items: state.items,
-        totalCents: state.totalCents,
-        fulfillment: fulfillment,
-        paymentMethod: PaymentMethod.pix,
-      ),
-    );
-    emit(
-      state.copyWith(
-        isSubmitting: false,
-        isSuccess: true,
-        orderId: orderId,
-        paymentTransactionId: payment.transactionId,
-        step: CheckoutStep.success,
-      ),
-    );
   }
 }

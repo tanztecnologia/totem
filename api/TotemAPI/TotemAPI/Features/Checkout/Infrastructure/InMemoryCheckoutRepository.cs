@@ -23,6 +23,26 @@ public sealed class InMemoryCheckoutRepository : ICheckoutRepository
         return Task.FromResult(order.TenantId == tenantId ? order : null);
     }
 
+    public Task<IReadOnlyList<Order>> ListOrdersAsync(
+        Guid tenantId,
+        IReadOnlyList<OrderKitchenStatus>? kitchenStatuses,
+        int limit,
+        CancellationToken ct
+    )
+    {
+        if (limit <= 0) return Task.FromResult<IReadOnlyList<Order>>(Array.Empty<Order>());
+        if (limit > 200) limit = 200;
+
+        IEnumerable<Order> list = _orders.Values.Where(x => x.TenantId == tenantId);
+        if (kitchenStatuses is { Count: > 0 })
+        {
+            list = list.Where(x => kitchenStatuses.Contains(x.KitchenStatus));
+        }
+
+        var result = list.OrderByDescending(x => x.UpdatedAt).Take(limit).ToList().AsReadOnly();
+        return Task.FromResult<IReadOnlyList<Order>>(result);
+    }
+
     public Task<IReadOnlyList<OrderItem>> ListOrderItemsAsync(Guid tenantId, Guid orderId, CancellationToken ct)
     {
         if (!_orderItemsByOrderId.TryGetValue(orderId, out var items)) return Task.FromResult<IReadOnlyList<OrderItem>>(Array.Empty<OrderItem>());
@@ -47,4 +67,3 @@ public sealed class InMemoryCheckoutRepository : ICheckoutRepository
         return Task.CompletedTask;
     }
 }
-

@@ -74,3 +74,6 @@ totem.local.db-wal
 **/*.local.db
 **/*.local.db-shm
 **/*.local.db-wal
+
+# Env (local)
+.env

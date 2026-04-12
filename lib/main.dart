@@ -1,51 +1,116 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:totem_ds/totem_ds.dart';
 
-import 'src/features/checkout/data/repositories/in_memory_order_repository.dart';
-import 'src/features/checkout/data/services/fake_tef_payment_service.dart';
-import 'src/features/checkout/domain/repositories/order_repository.dart';
-import 'src/features/checkout/domain/services/payment_service.dart';
+import 'src/features/checkout/data/services/fake_checkout_service.dart';
+import 'src/features/checkout/data/services/totem_api_checkout_service.dart';
+import 'src/features/checkout/domain/services/checkout_service.dart';
 import 'src/features/kiosk/data/repositories/in_memory_catalog_repository.dart';
 import 'src/features/kiosk/domain/repositories/catalog_repository.dart';
 import 'src/features/kiosk/presentation/bloc/kiosk_bloc.dart';
 import 'src/features/kiosk/presentation/pages/kiosk_page.dart';
 
+import 'src/features/kitchen/data/repositories/api_kitchen_repository.dart';
+import 'src/features/kitchen/data/repositories/in_memory_kitchen_repository.dart';
+import 'src/features/kitchen/domain/repositories/kitchen_repository.dart';
+import 'src/features/kitchen/presentation/bloc/kitchen_cubit.dart';
+import 'src/features/kitchen/presentation/pages/kitchen_page.dart';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  await dotenv.load(fileName: '.env');
   runApp(const TotemApp());
 }
 
 class TotemApp extends StatelessWidget {
   const TotemApp({super.key});
 
+  Uri? _tryParseAndSanitizeBaseUrl(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) return null;
+
+    final uri = Uri.tryParse(trimmed);
+    if (uri == null || !uri.hasScheme || uri.host.isEmpty) return null;
+
+    if (uri.host == '0.0.0.0') {
+      return uri.replace(host: 'localhost');
+    }
+    return uri;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final kioskHome = BlocProvider(
-      create: (context) => KioskBloc(
-        catalogRepository: context.read<CatalogRepository>(),
-      )..add(const KioskLoadRequested()),
-      child: const KioskPage(),
-    );
+    final env = dotenv.isInitialized ? dotenv.env : const <String, String>{};
+    final apiBaseUrl =
+        env['TOTEM_API_BASE_URL'] ?? const String.fromEnvironment('TOTEM_API_BASE_URL');
+    final tenantName =
+        env['TOTEM_TENANT_NAME'] ?? const String.fromEnvironment('TOTEM_TENANT_NAME');
+    final email = env['TOTEM_EMAIL'] ?? const String.fromEnvironment('TOTEM_EMAIL');
+    final password = env['TOTEM_PASSWORD'] ?? const String.fromEnvironment('TOTEM_PASSWORD');
+    final kitchenEmail =
+        env['TOTEM_KITCHEN_EMAIL'] ?? const String.fromEnvironment('TOTEM_KITCHEN_EMAIL');
+    final kitchenPassword = env['TOTEM_KITCHEN_PASSWORD'] ??
+        const String.fromEnvironment('TOTEM_KITCHEN_PASSWORD');
+    final appMode =
+        env['APP_MODE'] ?? const String.fromEnvironment('APP_MODE', defaultValue: 'kiosk');
+
+    final effectiveKitchenEmail = kitchenEmail.trim().isEmpty ? email : kitchenEmail;
+    final effectiveKitchenPassword = kitchenPassword.trim().isEmpty ? password : kitchenPassword;
+    final sanitizedBaseUrl = _tryParseAndSanitizeBaseUrl(apiBaseUrl);
+
+    final Widget homeFeature;
+
+    if (appMode == 'kitchen') {
+      homeFeature = BlocProvider(
+        create: (context) => KitchenCubit(
+          context.read<KitchenRepository>(),
+        )..loadOrders(),
+        child: const KitchenPage(),
+      );
+    } else {
+      homeFeature = BlocProvider(
+        create: (context) => KioskBloc(
+          catalogRepository: context.read<CatalogRepository>(),
+        )..add(const KioskLoadRequested()),
+        child: const KioskPage(),
+      );
+    }
 
     return MultiRepositoryProvider(
       providers: [
         RepositoryProvider<CatalogRepository>(
           create: (_) => const InMemoryCatalogRepository(),
         ),
-        RepositoryProvider<OrderRepository>(
-          create: (_) => InMemoryOrderRepository(),
+        RepositoryProvider<CheckoutService>(
+          create: (_) {
+            if (sanitizedBaseUrl == null) return FakeCheckoutService();
+            return TotemApiCheckoutService(
+              baseUrl: sanitizedBaseUrl,
+              tenantName: tenantName,
+              email: email,
+              password: password,
+            );
+          },
         ),
-        RepositoryProvider<PaymentService>(
-          create: (_) => const FakeTefPaymentService(),
+        RepositoryProvider<KitchenRepository>(
+          create: (_) {
+            if (sanitizedBaseUrl == null) return InMemoryKitchenRepository();
+            return ApiKitchenRepository(
+              baseUrl: sanitizedBaseUrl,
+              tenantName: tenantName,
+              email: effectiveKitchenEmail,
+              password: effectiveKitchenPassword,
+            );
+          },
         ),
       ],
       child: MaterialApp(
         title: 'TZTotem',
         theme: TotemTheme.light(),
-        home: _SplashGate(child: kioskHome),
+        home: _SplashGate(child: homeFeature),
       ),
     );
   }

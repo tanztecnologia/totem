@@ -22,10 +22,13 @@ public sealed class EfCheckoutRepository : ICheckoutRepository
             {
                 Id = order.Id,
                 TenantId = order.TenantId,
+                CartId = order.CartId,
                 Fulfillment = order.Fulfillment,
                 TotalCents = order.TotalCents,
                 Status = order.Status,
+                KitchenStatus = order.KitchenStatus,
                 CreatedAt = order.CreatedAt,
+                UpdatedAt = order.UpdatedAt,
             }
         );
 
@@ -77,6 +80,31 @@ public sealed class EfCheckoutRepository : ICheckoutRepository
         return row?.ToDomain();
     }
 
+    public async Task<IReadOnlyList<Order>> ListOrdersAsync(
+        Guid tenantId,
+        IReadOnlyList<OrderKitchenStatus>? kitchenStatuses,
+        int limit,
+        CancellationToken ct
+    )
+    {
+        if (limit <= 0) return Array.Empty<Order>();
+        if (limit > 200) limit = 200;
+
+        var query = _db.Orders.AsNoTracking().Where(x => x.TenantId == tenantId);
+        if (kitchenStatuses is { Count: > 0 })
+        {
+            query = query.Where(x => kitchenStatuses.Contains(x.KitchenStatus));
+        }
+
+        var list = await query.ToListAsync(ct);
+        return list
+            .OrderByDescending(x => x.UpdatedAt)
+            .Take(limit)
+            .Select(x => x.ToDomain())
+            .ToList()
+            .AsReadOnly();
+    }
+
     public async Task<IReadOnlyList<OrderItem>> ListOrderItemsAsync(Guid tenantId, Guid orderId, CancellationToken ct)
     {
         return await _db.OrderItems
@@ -110,8 +138,10 @@ public sealed class EfCheckoutRepository : ICheckoutRepository
         var row = await _db.Orders.SingleOrDefaultAsync(x => x.TenantId == order.TenantId && x.Id == order.Id, ct);
         if (row is null) throw new InvalidOperationException("Pedido não encontrado.");
 
+        row.CartId = order.CartId;
         row.Status = order.Status;
+        row.KitchenStatus = order.KitchenStatus;
+        row.UpdatedAt = order.UpdatedAt;
         await _db.SaveChangesAsync(ct);
     }
 }
-
