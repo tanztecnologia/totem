@@ -30,6 +30,7 @@ public class KitchenUseCasesTests
             TotalCents: 1500,
             Status: OrderStatus.Paid,
             KitchenStatus: OrderKitchenStatus.Queued,
+            Comanda: null,
             CreatedAt: now,
             UpdatedAt: now,
             QueuedAt: now,
@@ -104,6 +105,42 @@ public class KitchenUseCasesTests
         var updatedOrder = await repo.GetOrderAsync(tenantId, orderId, CancellationToken.None);
         Assert.NotNull(updatedOrder);
         Assert.Equal(OrderKitchenStatus.InPreparation, updatedOrder.KitchenStatus);
+    }
+
+    [Fact]
+    public async Task UpdateKitchenOrderStatus_ThrowsWhenNotPaidAndNoComanda()
+    {
+        // Arrange
+        var (tenantId, orderId, repo) = SetupRepo();
+        var order = await repo.GetOrderAsync(tenantId, orderId, CancellationToken.None);
+        order = order! with { Status = OrderStatus.Created, Comanda = null };
+        await repo.UpdateOrderAsync(order, CancellationToken.None);
+
+        var useCase = new UpdateKitchenOrderStatus(repo);
+        var command = new UpdateKitchenOrderStatusCommand(tenantId, orderId, OrderKitchenStatus.InPreparation);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.HandleAsync(command, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task UpdateKitchenOrderStatus_UpdatesStatusWhenNotPaidButHasComanda()
+    {
+        // Arrange
+        var (tenantId, orderId, repo) = SetupRepo();
+        var order = await repo.GetOrderAsync(tenantId, orderId, CancellationToken.None);
+        order = order! with { Status = OrderStatus.Created, Comanda = "Mesa 5" };
+        await repo.UpdateOrderAsync(order, CancellationToken.None);
+
+        var useCase = new UpdateKitchenOrderStatus(repo);
+        var command = new UpdateKitchenOrderStatusCommand(tenantId, orderId, OrderKitchenStatus.InPreparation);
+
+        // Act
+        var result = await useCase.HandleAsync(command, CancellationToken.None);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(OrderKitchenStatus.InPreparation, result.KitchenStatus);
     }
 
     [Fact]

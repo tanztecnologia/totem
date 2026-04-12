@@ -18,7 +18,9 @@ class ApiKitchenRepository implements KitchenRepository {
     required this.tenantName,
     required this.email,
     required this.password,
+    String? initialToken,
   }) {
+    _token = initialToken?.trim().isEmpty ?? true ? null : initialToken!.trim();
     _http = TotemHttpClient(
       baseUrl: baseUrl,
       tokenProvider: () => _token,

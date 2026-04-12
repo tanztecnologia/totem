@@ -29,7 +29,8 @@ public sealed class CheckoutController : ControllerBase
                     TenantId: tenantId,
                     CartId: request.CartId,
                     Fulfillment: request.Fulfillment,
-                    PaymentMethod: request.PaymentMethod
+                    PaymentMethod: request.PaymentMethod,
+                    Comanda: request.Comanda
                 ),
                 ct
             );
@@ -99,7 +100,8 @@ public sealed class CheckoutController : ControllerBase
     {
         return User.IsInRole(UserRole.Admin.ToString())
             || User.IsInRole(UserRole.Staff.ToString())
-            || User.IsInRole(UserRole.Totem.ToString());
+            || User.IsInRole(UserRole.Totem.ToString())
+            || User.IsInRole(UserRole.Waiter.ToString());
     }
 
     private bool TryGetTenantId(out Guid tenantId)
@@ -113,5 +115,6 @@ public sealed class CheckoutController : ControllerBase
 public sealed record StartCheckoutRequest(
     Guid CartId,
     OrderFulfillment Fulfillment,
-    PaymentMethod PaymentMethod
+    PaymentMethod PaymentMethod,
+    string? Comanda
 );

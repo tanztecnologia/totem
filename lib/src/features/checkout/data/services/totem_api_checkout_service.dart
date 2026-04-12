@@ -12,10 +12,12 @@ class TotemApiCheckoutService implements CheckoutService {
     required String tenantName,
     required String email,
     required String password,
+    String? initialToken,
     TotemHttpClient? httpClient,
   })  : _tenantName = tenantName,
         _email = email,
         _password = password {
+    _token = initialToken?.trim().isEmpty ?? true ? null : initialToken!.trim();
     _http = httpClient ??
         TotemHttpClient(
           baseUrl: baseUrl,
@@ -36,6 +38,7 @@ class TotemApiCheckoutService implements CheckoutService {
     required List<CheckoutItem> items,
     required OrderFulfillment fulfillment,
     required PaymentMethod paymentMethod,
+    String? comanda,
   }) async {
     await _getToken();
     final skuIdByCode = await _getSkuIdByCode();
@@ -64,6 +67,7 @@ class TotemApiCheckoutService implements CheckoutService {
         'cartId': cartId,
         'fulfillment': _fulfillmentToApi(fulfillment),
         'paymentMethod': _paymentMethodToApi(paymentMethod),
+        if (comanda != null && comanda.trim().isNotEmpty) 'comanda': comanda.trim(),
       },
     );
 

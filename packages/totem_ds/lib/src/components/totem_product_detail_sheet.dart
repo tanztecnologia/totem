@@ -117,7 +117,7 @@ class TotemProductDetailSheet extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 10),
-              Flexible(
+              Expanded(
                 child: SingleChildScrollView(
                   child: Column(
                     children: [
@@ -131,6 +131,8 @@ class TotemProductDetailSheet extends StatelessWidget {
                   ),
                 ),
               ),
+            ] else ...[
+              const Spacer(),
             ],
             const SizedBox(height: 16),
             Row(

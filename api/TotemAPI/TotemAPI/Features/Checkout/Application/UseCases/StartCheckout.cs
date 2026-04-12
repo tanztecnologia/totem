@@ -9,7 +9,8 @@ public sealed record StartCheckoutCommand(
     Guid TenantId,
     Guid CartId,
     OrderFulfillment Fulfillment,
-    PaymentMethod PaymentMethod
+    PaymentMethod PaymentMethod,
+    string? Comanda
 );
 
 public sealed record CheckoutOrderItemResult(
@@ -131,10 +132,11 @@ public sealed class StartCheckout
             Fulfillment: command.Fulfillment,
             TotalCents: totalCents,
             Status: OrderStatus.Created,
-            KitchenStatus: OrderKitchenStatus.PendingPayment,
+            KitchenStatus: command.Comanda != null ? OrderKitchenStatus.Queued : OrderKitchenStatus.PendingPayment,
+            Comanda: command.Comanda,
             CreatedAt: now,
             UpdatedAt: now,
-            QueuedAt: null,
+            QueuedAt: command.Comanda != null ? now : null,
             InPreparationAt: null,
             ReadyAt: null,
             CompletedAt: null,

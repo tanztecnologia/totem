@@ -11,11 +11,13 @@ class StartCheckout {
     required List<CheckoutItem> items,
     required OrderFulfillment fulfillment,
     required PaymentMethod paymentMethod,
+    String? comanda,
   }) {
     return _service.startCheckout(
       items: items,
       fulfillment: fulfillment,
       paymentMethod: paymentMethod,
+      comanda: comanda,
     );
   }
 }

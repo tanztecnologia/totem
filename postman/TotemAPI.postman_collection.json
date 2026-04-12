@@ -433,7 +433,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"cartId\": \"{{cartId}}\",\n  \"fulfillment\": \"DineIn\",\n  \"paymentMethod\": \"Pix\"\n}"
+              "raw": "{\n  \"cartId\": \"{{cartId}}\",\n  \"fulfillment\": \"DineIn\",\n  \"paymentMethod\": \"Pix\",\n  \"comanda\": \"12\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/checkout",

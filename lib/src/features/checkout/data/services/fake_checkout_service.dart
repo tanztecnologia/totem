@@ -14,6 +14,7 @@ class FakeCheckoutService implements CheckoutService {
     required List<CheckoutItem> items,
     required OrderFulfillment fulfillment,
     required PaymentMethod paymentMethod,
+    String? comanda,
   }) async {
     await Future<void>.delayed(const Duration(milliseconds: 250));
     final orderId = _randomId();

@@ -175,6 +175,7 @@ class _CheckoutServiceApproved implements CheckoutService {
     required List<CheckoutItem> items,
     required OrderFulfillment fulfillment,
     required PaymentMethod paymentMethod,
+    String? comanda,
   }) async {
     lastItems = items;
     lastFulfillment = fulfillment;
@@ -206,6 +207,7 @@ class _CheckoutServiceDeclined implements CheckoutService {
     required List<CheckoutItem> items,
     required OrderFulfillment fulfillment,
     required PaymentMethod paymentMethod,
+    String? comanda,
   }) async {
     return const CheckoutStartResult(orderId: 'order-1', paymentId: 'payment-1', pixCharge: null);
   }

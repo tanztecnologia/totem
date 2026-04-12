@@ -79,6 +79,7 @@ public sealed class TotemDbContext : DbContext
             b.Property(x => x.Status).HasConversion<int>().IsRequired();
             b.Property(x => x.CreatedAt).IsRequired();
             b.Property(x => x.KitchenStatus).HasConversion<int>().IsRequired();
+            b.Property(x => x.Comanda);
             b.Property(x => x.UpdatedAt).IsRequired();
             b.Property(x => x.QueuedAt);
             b.Property(x => x.InPreparationAt);
@@ -212,6 +213,7 @@ public sealed class OrderRow
     public int TotalCents { get; set; }
     public OrderStatus Status { get; set; }
     public OrderKitchenStatus KitchenStatus { get; set; }
+    public string? Comanda { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
     public DateTimeOffset? QueuedAt { get; set; }
@@ -322,6 +324,7 @@ internal static class OrderMapping
             row.TotalCents,
             row.Status,
             row.KitchenStatus,
+            row.Comanda,
             row.CreatedAt,
             row.UpdatedAt,
             row.QueuedAt,

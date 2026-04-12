@@ -36,7 +36,7 @@ public sealed class UpdateKitchenOrderStatus
         var order = await _checkout.GetOrderAsync(command.TenantId, command.OrderId, ct);
         if (order is null) return null;
 
-        if (order.Status != OrderStatus.Paid && command.KitchenStatus is not OrderKitchenStatus.Cancelled)
+        if (order.Status != OrderStatus.Paid && order.Comanda == null && command.KitchenStatus is not OrderKitchenStatus.Cancelled)
             throw new InvalidOperationException("Pedido ainda não está pago.");
 
         if (order.KitchenStatus == command.KitchenStatus)

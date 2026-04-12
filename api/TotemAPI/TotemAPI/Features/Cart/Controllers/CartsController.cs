@@ -159,7 +159,8 @@ public sealed class CartsController : ControllerBase
     {
         return User.IsInRole(UserRole.Admin.ToString())
             || User.IsInRole(UserRole.Staff.ToString())
-            || User.IsInRole(UserRole.Totem.ToString());
+            || User.IsInRole(UserRole.Totem.ToString())
+            || User.IsInRole(UserRole.Waiter.ToString());
     }
 
     private bool TryGetTenantId(out Guid tenantId)
@@ -173,4 +174,3 @@ public sealed class CartsController : ControllerBase
 public sealed record SetCartItemRequest(int Quantity);
 
 public sealed record AddCartItemRequest(Guid SkuId, int Quantity);
-

@@ -33,6 +33,7 @@ public class KitchenOrdersControllerTests
             TotalCents: 1500,
             Status: OrderStatus.Paid,
             KitchenStatus: OrderKitchenStatus.Queued,
+            Comanda: null,
             CreatedAt: now,
             UpdatedAt: now,
             QueuedAt: now,

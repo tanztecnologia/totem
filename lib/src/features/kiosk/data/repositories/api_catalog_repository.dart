@@ -23,8 +23,10 @@ class ApiCatalogRepository implements CatalogRepository {
     required this.tenantName,
     required this.email,
     required this.password,
+    String? initialToken,
     TotemHttpClient? httpClient,
   }) {
+    _token = initialToken?.trim().isEmpty ?? true ? null : initialToken!.trim();
     _http = httpClient ??
         TotemHttpClient(
           baseUrl: baseUrl,

@@ -27,6 +27,7 @@ public sealed class EfCheckoutRepository : ICheckoutRepository
                 TotalCents = order.TotalCents,
                 Status = order.Status,
                 KitchenStatus = order.KitchenStatus,
+                Comanda = order.Comanda,
                 CreatedAt = order.CreatedAt,
                 UpdatedAt = order.UpdatedAt,
                 QueuedAt = order.QueuedAt,
@@ -146,6 +147,7 @@ public sealed class EfCheckoutRepository : ICheckoutRepository
         row.CartId = order.CartId;
         row.Status = order.Status;
         row.KitchenStatus = order.KitchenStatus;
+        row.Comanda = order.Comanda;
         row.UpdatedAt = order.UpdatedAt;
         row.QueuedAt = order.QueuedAt;
         row.InPreparationAt = order.InPreparationAt;

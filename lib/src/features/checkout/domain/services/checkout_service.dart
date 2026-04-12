@@ -20,6 +20,7 @@ abstract class CheckoutService {
     required List<CheckoutItem> items,
     required OrderFulfillment fulfillment,
     required PaymentMethod paymentMethod,
+    String? comanda,
   });
 
   Future<PaymentResult> confirmPayment({

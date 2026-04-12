@@ -131,7 +131,8 @@ public sealed class CartUseCasesTests
                 TenantId: tenantId,
                 CartId: cart.Id,
                 Fulfillment: OrderFulfillment.DineIn,
-                PaymentMethod: PaymentMethod.Pix
+                PaymentMethod: PaymentMethod.Pix,
+                Comanda: null
             ),
             CancellationToken.None
         );

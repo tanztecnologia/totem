@@ -43,7 +43,8 @@ public sealed class CheckoutUseCasesTests
                 TenantId: tenantId,
                 CartId: cart.Id,
                 Fulfillment: OrderFulfillment.DineIn,
-                PaymentMethod: PaymentMethod.Pix
+                PaymentMethod: PaymentMethod.Pix,
+                Comanda: null
             ),
             CancellationToken.None
         );
@@ -101,7 +102,8 @@ public sealed class CheckoutUseCasesTests
                 TenantId: tenantId,
                 CartId: cart.Id,
                 Fulfillment: OrderFulfillment.TakeAway,
-                PaymentMethod: PaymentMethod.CreditCard
+                PaymentMethod: PaymentMethod.CreditCard,
+                Comanda: null
             ),
             CancellationToken.None
         );
@@ -153,7 +155,8 @@ public sealed class CheckoutUseCasesTests
                 TenantId: tenantA,
                 CartId: cart.Id,
                 Fulfillment: OrderFulfillment.DineIn,
-                PaymentMethod: PaymentMethod.Pix
+                PaymentMethod: PaymentMethod.Pix,
+                Comanda: null
             ),
             CancellationToken.None
         );

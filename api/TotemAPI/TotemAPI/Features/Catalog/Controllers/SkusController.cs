@@ -144,7 +144,8 @@ public sealed class SkusController : ControllerBase
     {
         return User.IsInRole(UserRole.Admin.ToString())
             || User.IsInRole(UserRole.Staff.ToString())
-            || User.IsInRole(UserRole.Totem.ToString());
+            || User.IsInRole(UserRole.Totem.ToString())
+            || User.IsInRole(UserRole.Waiter.ToString());
     }
 
     private bool CanWriteSkus()

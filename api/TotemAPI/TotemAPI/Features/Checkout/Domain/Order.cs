@@ -8,6 +8,7 @@ public sealed record Order(
     int TotalCents,
     OrderStatus Status,
     OrderKitchenStatus KitchenStatus,
+    string? Comanda,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
     DateTimeOffset? QueuedAt,
