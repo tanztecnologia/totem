@@ -54,7 +54,42 @@ public sealed class UpdateKitchenOrderStatus
             nextOrderStatus = OrderStatus.Cancelled;
         }
 
-        var updated = order with { Status = nextOrderStatus, KitchenStatus = command.KitchenStatus, UpdatedAt = now };
+        var queuedAt = order.QueuedAt;
+        var inPreparationAt = order.InPreparationAt;
+        var readyAt = order.ReadyAt;
+        var completedAt = order.CompletedAt;
+        var cancelledAt = order.CancelledAt;
+
+        switch (command.KitchenStatus)
+        {
+            case OrderKitchenStatus.Queued:
+                queuedAt ??= now;
+                break;
+            case OrderKitchenStatus.InPreparation:
+                inPreparationAt ??= now;
+                break;
+            case OrderKitchenStatus.Ready:
+                readyAt ??= now;
+                break;
+            case OrderKitchenStatus.Completed:
+                completedAt ??= now;
+                break;
+            case OrderKitchenStatus.Cancelled:
+                cancelledAt ??= now;
+                break;
+        }
+
+        var updated = order with
+        {
+            Status = nextOrderStatus,
+            KitchenStatus = command.KitchenStatus,
+            UpdatedAt = now,
+            QueuedAt = queuedAt,
+            InPreparationAt = inPreparationAt,
+            ReadyAt = readyAt,
+            CompletedAt = completedAt,
+            CancelledAt = cancelledAt,
+        };
         await _checkout.UpdateOrderAsync(updated, ct);
 
         return new UpdateKitchenOrderStatusResult(updated.Id, updated.Status, updated.KitchenStatus, updated.UpdatedAt);
@@ -76,4 +111,3 @@ public sealed class UpdateKitchenOrderStatus
         };
     }
 }
-

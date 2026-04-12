@@ -62,6 +62,14 @@ class KitchenOrder {
   final String fulfillment;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final DateTime? queuedAt;
+  final DateTime? inPreparationAt;
+  final DateTime? readyAt;
+  final DateTime? completedAt;
+  final DateTime? cancelledAt;
+  final int currentStageElapsedSeconds;
+  final int currentStageTargetSeconds;
+  final bool isOverdue;
   final List<KitchenOrderItem> items;
 
   const KitchenOrder({
@@ -70,16 +78,39 @@ class KitchenOrder {
     required this.fulfillment,
     required this.createdAt,
     required this.updatedAt,
+    required this.queuedAt,
+    required this.inPreparationAt,
+    required this.readyAt,
+    required this.completedAt,
+    required this.cancelledAt,
+    required this.currentStageElapsedSeconds,
+    required this.currentStageTargetSeconds,
+    required this.isOverdue,
     required this.items,
   });
 
   factory KitchenOrder.fromJson(Map<String, dynamic> json) {
+    DateTime? parseDateTimeNullable(Object? raw) {
+      if (raw is! String) return null;
+      final v = raw.trim();
+      if (v.isEmpty) return null;
+      return DateTime.parse(v).toLocal();
+    }
+
     return KitchenOrder(
       id: json['orderId'] as String,
       status: KitchenOrderStatusX.fromString(json['kitchenStatus'] as String),
       fulfillment: json['fulfillment'] as String,
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      updatedAt: DateTime.parse(json['updatedAt'] as String),
+      createdAt: DateTime.parse(json['createdAt'] as String).toLocal(),
+      updatedAt: DateTime.parse(json['updatedAt'] as String).toLocal(),
+      queuedAt: parseDateTimeNullable(json['queuedAt']),
+      inPreparationAt: parseDateTimeNullable(json['inPreparationAt']),
+      readyAt: parseDateTimeNullable(json['readyAt']),
+      completedAt: parseDateTimeNullable(json['completedAt']),
+      cancelledAt: parseDateTimeNullable(json['cancelledAt']),
+      currentStageElapsedSeconds: (json['currentStageElapsedSeconds'] as num?)?.toInt() ?? 0,
+      currentStageTargetSeconds: (json['currentStageTargetSeconds'] as num?)?.toInt() ?? 0,
+      isOverdue: (json['isOverdue'] as bool?) ?? false,
       items: (json['items'] as List<dynamic>?)
               ?.map((e) => KitchenOrderItem.fromJson(e as Map<String, dynamic>))
               .toList() ??

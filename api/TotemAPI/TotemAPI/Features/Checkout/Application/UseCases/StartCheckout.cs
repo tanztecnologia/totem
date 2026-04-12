@@ -133,7 +133,12 @@ public sealed class StartCheckout
             Status: OrderStatus.Created,
             KitchenStatus: OrderKitchenStatus.PendingPayment,
             CreatedAt: now,
-            UpdatedAt: now
+            UpdatedAt: now,
+            QueuedAt: null,
+            InPreparationAt: null,
+            ReadyAt: null,
+            CompletedAt: null,
+            CancelledAt: null
         );
 
         var paymentId = Guid.NewGuid();

@@ -9,5 +9,10 @@ public sealed record Order(
     OrderStatus Status,
     OrderKitchenStatus KitchenStatus,
     DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt
+    DateTimeOffset UpdatedAt,
+    DateTimeOffset? QueuedAt,
+    DateTimeOffset? InPreparationAt,
+    DateTimeOffset? ReadyAt,
+    DateTimeOffset? CompletedAt,
+    DateTimeOffset? CancelledAt
 );

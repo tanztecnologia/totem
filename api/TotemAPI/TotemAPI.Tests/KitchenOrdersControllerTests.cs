@@ -21,6 +21,7 @@ public class KitchenOrdersControllerTests
         var repo = new InMemoryCheckoutRepository();
         var tenantId = Guid.NewGuid();
         var orderId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
 
         var order = new Order(
             Id: orderId,
@@ -30,8 +31,13 @@ public class KitchenOrdersControllerTests
             TotalCents: 1500,
             Status: OrderStatus.Paid,
             KitchenStatus: OrderKitchenStatus.Queued,
-            CreatedAt: DateTimeOffset.UtcNow,
-            UpdatedAt: DateTimeOffset.UtcNow
+            CreatedAt: now,
+            UpdatedAt: now,
+            QueuedAt: now,
+            InPreparationAt: null,
+            ReadyAt: null,
+            CompletedAt: null,
+            CancelledAt: null
         );
 
         var items = new List<OrderItem>();

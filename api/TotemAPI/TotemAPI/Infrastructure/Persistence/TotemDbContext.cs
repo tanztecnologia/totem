@@ -77,6 +77,11 @@ public sealed class TotemDbContext : DbContext
             b.Property(x => x.CreatedAt).IsRequired();
             b.Property(x => x.KitchenStatus).HasConversion<int>().IsRequired();
             b.Property(x => x.UpdatedAt).IsRequired();
+            b.Property(x => x.QueuedAt);
+            b.Property(x => x.InPreparationAt);
+            b.Property(x => x.ReadyAt);
+            b.Property(x => x.CompletedAt);
+            b.Property(x => x.CancelledAt);
             b.HasIndex(x => x.TenantId);
             b.HasIndex(x => new { x.TenantId, x.CreatedAt });
             b.HasIndex(x => new { x.TenantId, x.UpdatedAt });
@@ -195,6 +200,11 @@ public sealed class OrderRow
     public OrderKitchenStatus KitchenStatus { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
+    public DateTimeOffset? QueuedAt { get; set; }
+    public DateTimeOffset? InPreparationAt { get; set; }
+    public DateTimeOffset? ReadyAt { get; set; }
+    public DateTimeOffset? CompletedAt { get; set; }
+    public DateTimeOffset? CancelledAt { get; set; }
 }
 
 public sealed class OrderItemRow
@@ -270,7 +280,22 @@ internal static class SkuMapping
 internal static class OrderMapping
 {
     public static Order ToDomain(this OrderRow row) =>
-        new(row.Id, row.TenantId, row.CartId, row.Fulfillment, row.TotalCents, row.Status, row.KitchenStatus, row.CreatedAt, row.UpdatedAt);
+        new(
+            row.Id,
+            row.TenantId,
+            row.CartId,
+            row.Fulfillment,
+            row.TotalCents,
+            row.Status,
+            row.KitchenStatus,
+            row.CreatedAt,
+            row.UpdatedAt,
+            row.QueuedAt,
+            row.InPreparationAt,
+            row.ReadyAt,
+            row.CompletedAt,
+            row.CancelledAt
+        );
 }
 
 internal static class OrderItemMapping

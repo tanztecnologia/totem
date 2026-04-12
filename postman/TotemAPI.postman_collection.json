@@ -736,7 +736,7 @@
         {
           "name": "Update Status",
           "request": {
-            "method": "PUT",
+            "method": "POST",
             "header": [
               {
                 "key": "Authorization",
@@ -749,7 +749,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"newStatus\": \"InPreparation\"\n}"
+              "raw": "{\n  \"kitchenStatus\": \"InPreparation\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/kitchen/orders/{{orderId}}/status",

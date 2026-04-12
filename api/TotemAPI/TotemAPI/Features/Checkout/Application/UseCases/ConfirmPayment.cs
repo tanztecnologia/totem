@@ -80,11 +80,15 @@ public sealed class ConfirmPayment
             var nextKitchenStatus = order.KitchenStatus == OrderKitchenStatus.PendingPayment
                 ? OrderKitchenStatus.Queued
                 : order.KitchenStatus;
-            newOrder = order with { Status = OrderStatus.Paid, KitchenStatus = nextKitchenStatus, UpdatedAt = now };
+            var queuedAt = order.QueuedAt;
+            if (nextKitchenStatus == OrderKitchenStatus.Queued && queuedAt is null) queuedAt = now;
+            newOrder = order with { Status = OrderStatus.Paid, KitchenStatus = nextKitchenStatus, UpdatedAt = now, QueuedAt = queuedAt };
         }
         else if (confirmation.IsApproved && order.UpdatedAt != now)
         {
-            newOrder = order with { UpdatedAt = now };
+            var queuedAt = order.QueuedAt;
+            if (order.KitchenStatus == OrderKitchenStatus.Queued && queuedAt is null) queuedAt = now;
+            newOrder = order with { UpdatedAt = now, QueuedAt = queuedAt };
         }
 
         await _checkout.UpdatePaymentAsync(newPayment, ct);

@@ -123,8 +123,17 @@ namespace TotemAPI.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("TotemAPI.Infrastructure.Persistence.OrderRow", b =>
                 {
+                    b.Property<DateTimeOffset?>("CancelledAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("InPreparationAt")
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("CartId")
@@ -138,6 +147,12 @@ namespace TotemAPI.Infrastructure.Persistence.Migrations
 
                     b.Property<int>("KitchenStatus")
                         .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset?>("QueuedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("ReadyAt")
+                        .HasColumnType("TEXT");
 
                     b.Property<int>("Status")
                         .HasColumnType("INTEGER");

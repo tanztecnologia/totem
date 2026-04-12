@@ -29,6 +29,11 @@ public sealed class EfCheckoutRepository : ICheckoutRepository
                 KitchenStatus = order.KitchenStatus,
                 CreatedAt = order.CreatedAt,
                 UpdatedAt = order.UpdatedAt,
+                QueuedAt = order.QueuedAt,
+                InPreparationAt = order.InPreparationAt,
+                ReadyAt = order.ReadyAt,
+                CompletedAt = order.CompletedAt,
+                CancelledAt = order.CancelledAt,
             }
         );
 
@@ -142,6 +147,11 @@ public sealed class EfCheckoutRepository : ICheckoutRepository
         row.Status = order.Status;
         row.KitchenStatus = order.KitchenStatus;
         row.UpdatedAt = order.UpdatedAt;
+        row.QueuedAt = order.QueuedAt;
+        row.InPreparationAt = order.InPreparationAt;
+        row.ReadyAt = order.ReadyAt;
+        row.CompletedAt = order.CompletedAt;
+        row.CancelledAt = order.CancelledAt;
         await _db.SaveChangesAsync(ct);
     }
 }

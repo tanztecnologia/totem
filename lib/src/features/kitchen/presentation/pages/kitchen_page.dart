@@ -161,8 +161,11 @@ class _KitchenOrderCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final cubit = context.read<KitchenCubit>();
-    final duration = DateTime.now().difference(order.createdAt);
-    final durationText = '${duration.inMinutes}m';
+    final elapsedSeconds = order.currentStageElapsedSeconds > 0
+        ? order.currentStageElapsedSeconds
+        : DateTime.now().difference(order.createdAt).inSeconds;
+    final targetSeconds = order.currentStageTargetSeconds;
+    final timerStyle = _getTimerStyle(elapsedSeconds, targetSeconds, order.isOverdue);
 
     return Card(
       elevation: 2,
@@ -182,13 +185,13 @@ class _KitchenOrderCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.red.shade100,
+                    color: timerStyle.background,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    durationText,
+                    _formatTimer(_getStageLabel(order.status), elapsedSeconds, targetSeconds),
                     style: textTheme.bodySmall?.copyWith(
-                      color: Colors.red.shade900,
+                      color: timerStyle.foreground,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -249,6 +252,40 @@ class _KitchenOrderCard extends StatelessWidget {
       default:
         return Colors.grey;
     }
+  }
+
+  ({Color background, Color foreground}) _getTimerStyle(int elapsedSeconds, int targetSeconds, bool isOverdue) {
+    if (targetSeconds <= 0) return (background: Colors.grey.shade200, foreground: Colors.grey.shade900);
+    if (isOverdue) return (background: Colors.red.shade100, foreground: Colors.red.shade900);
+
+    final warningAtSeconds = (targetSeconds * 3) ~/ 4;
+    if (elapsedSeconds >= warningAtSeconds) return (background: Colors.orange.shade100, foreground: Colors.orange.shade900);
+    return (background: Colors.grey.shade200, foreground: Colors.grey.shade900);
+  }
+
+  String _getStageLabel(KitchenOrderStatus status) {
+    switch (status) {
+      case KitchenOrderStatus.queued:
+        return 'Espera';
+      case KitchenOrderStatus.inPreparation:
+        return 'Preparo';
+      case KitchenOrderStatus.ready:
+        return 'Pronto';
+      default:
+        return 'Tempo';
+    }
+  }
+
+  String _formatTimer(String label, int elapsedSeconds, int targetSeconds) {
+    final elapsedText = _formatMinutes(elapsedSeconds);
+    if (targetSeconds <= 0) return '$label: $elapsedText';
+    final targetText = _formatMinutes(targetSeconds);
+    return '$label: $elapsedText / $targetText';
+  }
+
+  String _formatMinutes(int seconds) {
+    final minutes = seconds ~/ 60;
+    return '${minutes}m';
   }
 
   String _getActionText(KitchenOrderStatus status) {
