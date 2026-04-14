@@ -66,6 +66,17 @@ public sealed class TotemDbContext : DbContext
             b.Property(x => x.PriceCents).IsRequired();
             b.Property(x => x.AveragePrepSeconds);
             b.Property(x => x.ImageUrl);
+            b.Property(x => x.NfeCProd);
+            b.Property(x => x.NfeCEan);
+            b.Property(x => x.NfeCfop);
+            b.Property(x => x.NfeUCom);
+            b.Property(x => x.NfeQCom);
+            b.Property(x => x.NfeVUnCom);
+            b.Property(x => x.NfeVProd);
+            b.Property(x => x.NfeCEanTrib);
+            b.Property(x => x.NfeUTrib);
+            b.Property(x => x.NfeQTrib);
+            b.Property(x => x.NfeVUnTrib);
             b.Property(x => x.IsActive).IsRequired();
             b.Property(x => x.CreatedAt).IsRequired();
             b.Property(x => x.UpdatedAt).IsRequired();
@@ -259,6 +270,17 @@ public sealed class SkuRow
     public int PriceCents { get; set; }
     public int? AveragePrepSeconds { get; set; }
     public string? ImageUrl { get; set; }
+    public string? NfeCProd { get; set; }
+    public string? NfeCEan { get; set; }
+    public string? NfeCfop { get; set; }
+    public string? NfeUCom { get; set; }
+    public decimal? NfeQCom { get; set; }
+    public decimal? NfeVUnCom { get; set; }
+    public decimal? NfeVProd { get; set; }
+    public string? NfeCEanTrib { get; set; }
+    public string? NfeUTrib { get; set; }
+    public decimal? NfeQTrib { get; set; }
+    public decimal? NfeVUnTrib { get; set; }
     public bool IsActive { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
@@ -386,6 +408,17 @@ internal static class SkuMapping
             row.PriceCents,
             row.AveragePrepSeconds,
             row.ImageUrl,
+            row.NfeCProd,
+            row.NfeCEan,
+            row.NfeCfop,
+            row.NfeUCom,
+            row.NfeQCom,
+            row.NfeVUnCom,
+            row.NfeVProd,
+            row.NfeCEanTrib,
+            row.NfeUTrib,
+            row.NfeQTrib,
+            row.NfeVUnTrib,
             row.IsActive,
             row.CreatedAt,
             row.UpdatedAt

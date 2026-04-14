@@ -139,6 +139,17 @@ public sealed class EfSkuRepository : ISkuRepository
             PriceCents = sku.PriceCents,
             AveragePrepSeconds = sku.AveragePrepSeconds,
             ImageUrl = sku.ImageUrl,
+            NfeCProd = sku.NfeCProd,
+            NfeCEan = sku.NfeCEan,
+            NfeCfop = sku.NfeCfop,
+            NfeUCom = sku.NfeUCom,
+            NfeQCom = sku.NfeQCom,
+            NfeVUnCom = sku.NfeVUnCom,
+            NfeVProd = sku.NfeVProd,
+            NfeCEanTrib = sku.NfeCEanTrib,
+            NfeUTrib = sku.NfeUTrib,
+            NfeQTrib = sku.NfeQTrib,
+            NfeVUnTrib = sku.NfeVUnTrib,
             IsActive = sku.IsActive,
             CreatedAt = sku.CreatedAt,
             UpdatedAt = sku.UpdatedAt,
@@ -160,6 +171,17 @@ public sealed class EfSkuRepository : ISkuRepository
         row.PriceCents = sku.PriceCents;
         row.AveragePrepSeconds = sku.AveragePrepSeconds;
         row.ImageUrl = sku.ImageUrl;
+        row.NfeCProd = sku.NfeCProd;
+        row.NfeCEan = sku.NfeCEan;
+        row.NfeCfop = sku.NfeCfop;
+        row.NfeUCom = sku.NfeUCom;
+        row.NfeQCom = sku.NfeQCom;
+        row.NfeVUnCom = sku.NfeVUnCom;
+        row.NfeVProd = sku.NfeVProd;
+        row.NfeCEanTrib = sku.NfeCEanTrib;
+        row.NfeUTrib = sku.NfeUTrib;
+        row.NfeQTrib = sku.NfeQTrib;
+        row.NfeVUnTrib = sku.NfeVUnTrib;
         row.IsActive = sku.IsActive;
         row.UpdatedAt = sku.UpdatedAt;
 
