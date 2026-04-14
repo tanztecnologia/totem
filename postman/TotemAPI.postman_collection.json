@@ -30,6 +30,30 @@
       "value": "123456"
     },
     {
+      "key": "pdvEmail",
+      "value": "pdv@empresax.local"
+    },
+    {
+      "key": "pdvPassword",
+      "value": "123456"
+    },
+    {
+      "key": "waiterEmail",
+      "value": "waiter@empresax.local"
+    },
+    {
+      "key": "waiterPassword",
+      "value": "123456"
+    },
+    {
+      "key": "kitchenEmail",
+      "value": "kitchen@empresax.local"
+    },
+    {
+      "key": "kitchenPassword",
+      "value": "123456"
+    },
+    {
       "key": "token",
       "value": ""
     },
@@ -56,6 +80,10 @@
     {
       "key": "cartId",
       "value": ""
+    },
+    {
+      "key": "comanda",
+      "value": "10"
     }
   ],
   "item": [
@@ -177,6 +205,135 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"tenantName\": \"{{tenantName}}\",\n  \"email\": \"{{totemEmail}}\",\n  \"password\": \"{{totemPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Login (PDV)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const json = pm.response.json();",
+                  "  if (json && json.token) { pm.collectionVariables.set('token', json.token); pm.environment.set('token', json.token); }",
+                  "  if (json && json.tenantId) { pm.collectionVariables.set('tenantId', json.tenantId); pm.environment.set('tenantId', json.tenantId); }",
+                  "  if (json && json.userId) { pm.collectionVariables.set('userId', json.userId); pm.environment.set('userId', json.userId); }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tenantName\": \"{{tenantName}}\",\n  \"email\": \"{{pdvEmail}}\",\n  \"password\": \"{{pdvPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Login (Waiter)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const json = pm.response.json();",
+                  "  if (json && json.token) { pm.collectionVariables.set('token', json.token); pm.environment.set('token', json.token); }",
+                  "  if (json && json.tenantId) { pm.collectionVariables.set('tenantId', json.tenantId); pm.environment.set('tenantId', json.tenantId); }",
+                  "  if (json && json.userId) { pm.collectionVariables.set('userId', json.userId); pm.environment.set('userId', json.userId); }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tenantName\": \"{{tenantName}}\",\n  \"email\": \"{{waiterEmail}}\",\n  \"password\": \"{{waiterPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Login (Kitchen)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const json = pm.response.json();",
+                  "  if (json && json.token) { pm.collectionVariables.set('token', json.token); pm.environment.set('token', json.token); }",
+                  "  if (json && json.tenantId) { pm.collectionVariables.set('tenantId', json.tenantId); pm.environment.set('tenantId', json.tenantId); }",
+                  "  if (json && json.userId) { pm.collectionVariables.set('userId', json.userId); pm.environment.set('userId', json.userId); }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tenantName\": \"{{tenantName}}\",\n  \"email\": \"{{kitchenEmail}}\",\n  \"password\": \"{{kitchenPassword}}\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/auth/login",
@@ -816,6 +973,169 @@
                 "api",
                 "admin",
                 "kitchen-sla"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "POS",
+      "item": [
+        {
+          "name": "List Orders By Comanda",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/pos/orders?comanda={{comanda}}&includePaid=false&limit=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pos",
+                "orders"
+              ],
+              "query": [
+                {
+                  "key": "comanda",
+                  "value": "{{comanda}}"
+                },
+                {
+                  "key": "includePaid",
+                  "value": "false"
+                },
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Pay Order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paymentMethod\": \"Cash\",\n  \"transactionId\": \"PDV-123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/pos/orders/{{orderId}}/pay",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pos",
+                "orders",
+                "{{orderId}}",
+                "pay"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Cashier Current",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/pos/cashier/current",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pos",
+                "cashier",
+                "current"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Cashier Open",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"openingCashCents\": 10000\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/pos/cashier/open",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pos",
+                "cashier",
+                "open"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Cashier Close",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"closingCashCents\": 12000\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/pos/cashier/close",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pos",
+                "cashier",
+                "close"
               ]
             }
           }

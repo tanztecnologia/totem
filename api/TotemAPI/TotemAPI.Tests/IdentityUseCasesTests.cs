@@ -194,4 +194,44 @@ public sealed class IdentityUseCasesTests
         Assert.Equal("waiter-1@a.com", waiter.Email);
         Assert.Equal(UserRole.Waiter, waiter.Role);
     }
+
+    [Fact]
+    public async Task Admin_consegue_criar_usuario_pdv_no_mesmo_tenant()
+    {
+        var tenants = new InMemoryTenantRepository();
+        var users = new InMemoryUserRepository();
+        var hasher = new Pbkdf2PasswordHasher();
+        var jwt = new JwtTokenService(
+            Options.Create(
+                new JwtOptions
+                {
+                    Issuer = "TZTotem",
+                    Audience = "TZTotem",
+                    Key = "dev-only-change-me-please-dev-only-change-me-please-32bytes-min",
+                }
+            )
+        );
+
+        var register = new RegisterUser(tenants, users, hasher, jwt);
+        var createUser = new CreateUser(users, hasher);
+
+        var reg = await register.HandleAsync(
+            new RegisterUserCommand("Restaurante A", "admin@a.com", "123456"),
+            CancellationToken.None
+        );
+
+        var pdv = await createUser.HandleAsync(
+            new CreateUserCommand(
+                TenantId: reg.TenantId,
+                Email: "pdv-1@a.com",
+                Password: "123456",
+                Role: UserRole.Pdv
+            ),
+            CancellationToken.None
+        );
+
+        Assert.Equal(reg.TenantId, pdv.TenantId);
+        Assert.Equal("pdv-1@a.com", pdv.Email);
+        Assert.Equal(UserRole.Pdv, pdv.Role);
+    }
 }

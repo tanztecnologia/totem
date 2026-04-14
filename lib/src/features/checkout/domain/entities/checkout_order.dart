@@ -9,6 +9,7 @@ enum PaymentMethod {
   creditCard,
   debitCard,
   pix,
+  cash,
 }
 
 class CheckoutOrder {

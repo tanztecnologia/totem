@@ -4,6 +4,7 @@ using TotemAPI.Features.Catalog.Domain;
 using TotemAPI.Features.Checkout.Domain;
 using TotemAPI.Features.Identity.Domain;
 using TotemAPI.Features.Kitchen.Domain;
+using TotemAPI.Features.Pos.Domain;
 
 namespace TotemAPI.Infrastructure.Persistence;
 
@@ -23,6 +24,7 @@ public sealed class TotemDbContext : DbContext
     public DbSet<CartRow> Carts => Set<CartRow>();
     public DbSet<CartItemRow> CartItems => Set<CartItemRow>();
     public DbSet<KitchenSlaRow> KitchenSlas => Set<KitchenSlaRow>();
+    public DbSet<CashRegisterShiftRow> CashRegisterShifts => Set<CashRegisterShiftRow>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -167,6 +169,30 @@ public sealed class TotemDbContext : DbContext
             b.HasIndex(x => new { x.TenantId, x.CartId, x.SkuId }).IsUnique();
             b.HasOne<CartRow>().WithMany().HasForeignKey(x => x.CartId).OnDelete(DeleteBehavior.Cascade);
         });
+
+        modelBuilder.Entity<CashRegisterShiftRow>(b =>
+        {
+            b.ToTable("cash_register_shifts");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.TenantId).IsRequired();
+            b.Property(x => x.Status).HasConversion<int>().IsRequired();
+            b.Property(x => x.OpenedByUserId).IsRequired();
+            b.Property(x => x.OpenedByEmail).IsRequired();
+            b.Property(x => x.OpeningCashCents).IsRequired();
+            b.Property(x => x.OpenedAt).IsRequired();
+            b.Property(x => x.ClosedByUserId);
+            b.Property(x => x.ClosedByEmail);
+            b.Property(x => x.ClosingCashCents);
+            b.Property(x => x.TotalSalesCents);
+            b.Property(x => x.TotalCashSalesCents);
+            b.Property(x => x.ExpectedCashCents);
+            b.Property(x => x.ClosedAt);
+            b.Property(x => x.CreatedAt).IsRequired();
+            b.Property(x => x.UpdatedAt).IsRequired();
+            b.HasIndex(x => x.TenantId);
+            b.HasIndex(x => new { x.TenantId, x.Status });
+            b.HasIndex(x => new { x.TenantId, x.OpenedAt });
+        });
     }
 }
 
@@ -278,6 +304,26 @@ public sealed class CartItemRow
     public Guid CartId { get; set; }
     public Guid SkuId { get; set; }
     public int Quantity { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
+}
+
+public sealed class CashRegisterShiftRow
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public CashRegisterShiftStatus Status { get; set; }
+    public Guid OpenedByUserId { get; set; }
+    public string OpenedByEmail { get; set; } = string.Empty;
+    public int OpeningCashCents { get; set; }
+    public DateTimeOffset OpenedAt { get; set; }
+    public Guid? ClosedByUserId { get; set; }
+    public string? ClosedByEmail { get; set; }
+    public int? ClosingCashCents { get; set; }
+    public int? TotalSalesCents { get; set; }
+    public int? TotalCashSalesCents { get; set; }
+    public int? ExpectedCashCents { get; set; }
+    public DateTimeOffset? ClosedAt { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
 }
@@ -398,6 +444,29 @@ internal static class CartItemMapping
             row.CartId,
             row.SkuId,
             row.Quantity,
+            row.CreatedAt,
+            row.UpdatedAt
+        );
+}
+
+internal static class CashRegisterShiftMapping
+{
+    public static CashRegisterShift ToDomain(this CashRegisterShiftRow row) =>
+        new(
+            row.Id,
+            row.TenantId,
+            row.Status,
+            row.OpenedByUserId,
+            row.OpenedByEmail,
+            row.OpeningCashCents,
+            row.OpenedAt,
+            row.ClosedByUserId,
+            row.ClosedByEmail,
+            row.ClosingCashCents,
+            row.TotalSalesCents,
+            row.TotalCashSalesCents,
+            row.ExpectedCashCents,
+            row.ClosedAt,
             row.CreatedAt,
             row.UpdatedAt
         );

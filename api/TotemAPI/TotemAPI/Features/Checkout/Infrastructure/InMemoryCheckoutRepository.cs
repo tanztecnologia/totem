@@ -43,6 +43,29 @@ public sealed class InMemoryCheckoutRepository : ICheckoutRepository
         return Task.FromResult<IReadOnlyList<Order>>(result);
     }
 
+    public Task<IReadOnlyList<Order>> ListOrdersByComandaAsync(
+        Guid tenantId,
+        string comanda,
+        bool includePaid,
+        int limit,
+        CancellationToken ct
+    )
+    {
+        var trimmed = comanda.Trim();
+        if (trimmed.Length == 0) return Task.FromResult<IReadOnlyList<Order>>(Array.Empty<Order>());
+        if (limit <= 0) return Task.FromResult<IReadOnlyList<Order>>(Array.Empty<Order>());
+        if (limit > 200) limit = 200;
+
+        var list = _orders.Values.Where(x => x.TenantId == tenantId && x.Comanda == trimmed);
+        if (!includePaid)
+        {
+            list = list.Where(x => x.Status != OrderStatus.Paid);
+        }
+
+        var result = list.OrderByDescending(x => x.UpdatedAt).Take(limit).ToList().AsReadOnly();
+        return Task.FromResult<IReadOnlyList<Order>>(result);
+    }
+
     public Task<IReadOnlyList<OrderItem>> ListOrderItemsAsync(Guid tenantId, Guid orderId, CancellationToken ct)
     {
         if (!_orderItemsByOrderId.TryGetValue(orderId, out var items)) return Task.FromResult<IReadOnlyList<OrderItem>>(Array.Empty<OrderItem>());
@@ -53,6 +76,12 @@ public sealed class InMemoryCheckoutRepository : ICheckoutRepository
     {
         if (!_payments.TryGetValue(paymentId, out var payment)) return Task.FromResult<Payment?>(null);
         return Task.FromResult(payment.TenantId == tenantId ? payment : null);
+    }
+
+    public Task<Payment?> GetPaymentByOrderIdAsync(Guid tenantId, Guid orderId, CancellationToken ct)
+    {
+        var payment = _payments.Values.FirstOrDefault(x => x.TenantId == tenantId && x.OrderId == orderId);
+        return Task.FromResult<Payment?>(payment);
     }
 
     public Task UpdatePaymentAsync(Payment payment, CancellationToken ct)

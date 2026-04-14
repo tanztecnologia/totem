@@ -10,7 +10,8 @@ public enum PaymentMethod
 {
     CreditCard = 1,
     DebitCard = 2,
-    Pix = 3
+    Pix = 3,
+    Cash = 4
 }
 
 public enum OrderStatus

@@ -124,6 +124,10 @@ public sealed class StartCheckout
         }
 
         if (totalCents <= 0) throw new InvalidOperationException("Total inválido.");
+        if (command.PaymentMethod == PaymentMethod.Cash && command.Comanda is null)
+        {
+            throw new ArgumentException("Cash só é permitido para pedidos de comanda.");
+        }
 
         var order = new Order(
             Id: orderId,
@@ -149,7 +153,11 @@ public sealed class StartCheckout
         string? pixPayload = null;
         DateTimeOffset? pixExpiresAt = null;
 
-        if (command.PaymentMethod == PaymentMethod.Pix)
+        if (command.Comanda != null)
+        {
+            provider = "POS";
+        }
+        else if (command.PaymentMethod == PaymentMethod.Pix)
         {
             var charge = await _tef.CreatePixChargeAsync(
                 amountCents: totalCents,

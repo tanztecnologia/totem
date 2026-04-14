@@ -111,6 +111,34 @@ public sealed class EfCheckoutRepository : ICheckoutRepository
             .AsReadOnly();
     }
 
+    public async Task<IReadOnlyList<Order>> ListOrdersByComandaAsync(
+        Guid tenantId,
+        string comanda,
+        bool includePaid,
+        int limit,
+        CancellationToken ct
+    )
+    {
+        var trimmed = comanda.Trim();
+        if (trimmed.Length == 0) return Array.Empty<Order>();
+        if (limit <= 0) return Array.Empty<Order>();
+        if (limit > 200) limit = 200;
+
+        var query = _db.Orders.AsNoTracking().Where(x => x.TenantId == tenantId && x.Comanda == trimmed);
+        if (!includePaid)
+        {
+            query = query.Where(x => x.Status != OrderStatus.Paid);
+        }
+
+        var list = await query.ToListAsync(ct);
+        return list
+            .OrderByDescending(x => x.UpdatedAt)
+            .Take(limit)
+            .Select(x => x.ToDomain())
+            .ToList()
+            .AsReadOnly();
+    }
+
     public async Task<IReadOnlyList<OrderItem>> ListOrderItemsAsync(Guid tenantId, Guid orderId, CancellationToken ct)
     {
         return await _db.OrderItems
@@ -127,6 +155,12 @@ public sealed class EfCheckoutRepository : ICheckoutRepository
         return row?.ToDomain();
     }
 
+    public async Task<Payment?> GetPaymentByOrderIdAsync(Guid tenantId, Guid orderId, CancellationToken ct)
+    {
+        var row = await _db.Payments.AsNoTracking().SingleOrDefaultAsync(x => x.TenantId == tenantId && x.OrderId == orderId, ct);
+        return row?.ToDomain();
+    }
+
     public async Task UpdatePaymentAsync(Payment payment, CancellationToken ct)
     {
         var row = await _db.Payments.SingleOrDefaultAsync(x => x.TenantId == payment.TenantId && x.Id == payment.Id, ct);
@@ -134,6 +168,9 @@ public sealed class EfCheckoutRepository : ICheckoutRepository
 
         row.Status = payment.Status;
         row.TransactionId = payment.TransactionId;
+        row.Provider = payment.Provider;
+        row.ProviderReference = payment.ProviderReference;
+        row.Method = payment.Method;
         row.UpdatedAt = payment.UpdatedAt;
 
         await _db.SaveChangesAsync(ct);

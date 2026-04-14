@@ -181,5 +181,6 @@ String _paymentMethodToApi(PaymentMethod v) {
     PaymentMethod.creditCard => 'CreditCard',
     PaymentMethod.debitCard => 'DebitCard',
     PaymentMethod.pix => 'Pix',
+    PaymentMethod.cash => 'Cash',
   };
 }

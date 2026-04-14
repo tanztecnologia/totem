@@ -535,6 +535,7 @@ String _paymentMethodLabel(PaymentMethod? v) {
     PaymentMethod.creditCard => 'Cartão de crédito',
     PaymentMethod.debitCard => 'Cartão de débito',
     PaymentMethod.pix => 'Pix',
+    PaymentMethod.cash => 'Dinheiro',
     null => '-',
   };
 }

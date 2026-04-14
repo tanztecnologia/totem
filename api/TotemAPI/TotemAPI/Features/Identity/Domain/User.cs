@@ -5,7 +5,8 @@ public enum UserRole
     Admin = 1,
     Staff = 2,
     Totem = 3,
-    Waiter = 4
+    Waiter = 4,
+    Pdv = 5
 }
 
 public sealed record User(

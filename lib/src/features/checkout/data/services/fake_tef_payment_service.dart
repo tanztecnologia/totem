@@ -31,6 +31,7 @@ class FakeTefPaymentService implements PaymentService {
     final delay = switch (method) {
       PaymentMethod.creditCard || PaymentMethod.debitCard => const Duration(seconds: 30),
       PaymentMethod.pix => const Duration(milliseconds: 700),
+      PaymentMethod.cash => const Duration(milliseconds: 200),
     };
     await Future<void>.delayed(delay);
     return PaymentResult(

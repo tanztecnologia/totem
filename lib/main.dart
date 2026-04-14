@@ -25,6 +25,12 @@ import 'src/features/kitchen/domain/repositories/kitchen_repository.dart';
 import 'src/features/kitchen/presentation/bloc/kitchen_cubit.dart';
 import 'src/features/kitchen/presentation/pages/kitchen_page.dart';
 import 'src/features/waiter/presentation/pages/waiter_page.dart';
+import 'src/features/pdv/data/repositories/totem_api_pdv_repository.dart';
+import 'src/features/pdv/domain/repositories/pdv_repository.dart';
+import 'src/features/pdv/domain/usecases/list_pdv_orders_by_comanda.dart';
+import 'src/features/pdv/domain/usecases/pay_pdv_order.dart';
+import 'src/features/pdv/presentation/bloc/pdv_cubit.dart';
+import 'src/features/pdv/presentation/pages/pdv_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -65,6 +71,16 @@ class TotemApp extends StatelessWidget {
     final appMode =
         env['APP_MODE'] ?? const String.fromEnvironment('APP_MODE', defaultValue: 'kiosk');
 
+    final effectiveTenantName = tenantName.trim().isEmpty ? 'Empresa X' : tenantName;
+    final effectiveInitialEmail = email.trim().isNotEmpty
+        ? email
+        : switch (appMode.trim().toLowerCase()) {
+            'kitchen' => 'kitchen@empresax.local',
+            'waiter' => 'waiter@empresax.local',
+            'pdv' => 'pdv@empresax.local',
+            _ => 'totem@empresax.local',
+          };
+
     final effectiveKitchenEmail = kitchenEmail.trim().isEmpty ? email : kitchenEmail;
     final effectiveKitchenPassword = kitchenPassword.trim().isEmpty ? password : kitchenPassword;
     final sanitizedBaseUrl = _tryParseAndSanitizeBaseUrl(apiBaseUrl);
@@ -80,8 +96,8 @@ class TotemApp extends StatelessWidget {
             home: _SplashGate(
               child: _AuthedApp(
                 baseUrl: sanitizedBaseUrl,
-                initialTenantName: tenantName,
-                initialEmail: email,
+                initialTenantName: effectiveTenantName,
+                initialEmail: effectiveInitialEmail,
               ),
             ),
           ),
@@ -222,6 +238,20 @@ class _AuthedApp extends StatelessWidget {
                   context.read<KitchenRepository>(),
                 )..loadOrders(),
                 child: const KitchenPage(),
+              ),
+            );
+          }
+
+          if (session.isPdv) {
+            return RepositoryProvider<PdvRepository>(
+              create: (_) => TotemApiPdvRepository(baseUrl: baseUrl, token: session.token),
+              child: BlocProvider(
+                create: (context) => PdvCubit(
+                  repository: context.read<PdvRepository>(),
+                  listOrdersByComanda: ListPdvOrdersByComanda(context.read<PdvRepository>()),
+                  payOrder: PayPdvOrder(context.read<PdvRepository>()),
+                )..loadCashRegister(),
+                child: const PdvPage(),
               ),
             );
           }

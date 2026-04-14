@@ -17,6 +17,8 @@ using TotemAPI.Features.Identity.Domain;
 using TotemAPI.Features.Identity.Infrastructure;
 using TotemAPI.Features.Kitchen.Application.UseCases;
 using TotemAPI.Features.Kitchen.Application.Abstractions;
+using TotemAPI.Features.Pos.Application.Abstractions;
+using TotemAPI.Features.Pos.Application.UseCases;
 using TotemAPI.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -48,6 +50,7 @@ builder.Services.AddScoped<ISkuRepository, EfSkuRepository>();
 builder.Services.AddScoped<ICheckoutRepository, EfCheckoutRepository>();
 builder.Services.AddScoped<ICartRepository, EfCartRepository>();
 builder.Services.AddScoped<IKitchenSlaRepository, EfKitchenSlaRepository>();
+builder.Services.AddScoped<ICashRegisterRepository, EfCashRegisterRepository>();
 builder.Services.AddSingleton<ITefPaymentService>(sp =>
 {
     var options = sp.GetRequiredService<IOptions<TefApiOptions>>().Value;
@@ -80,6 +83,12 @@ builder.Services.AddScoped<GetKitchenOrder>();
 builder.Services.AddScoped<UpdateKitchenOrderStatus>();
 builder.Services.AddScoped<GetKitchenSla>();
 builder.Services.AddScoped<UpsertKitchenSla>();
+
+builder.Services.AddScoped<ListPosOrdersByComanda>();
+builder.Services.AddScoped<PayPosOrder>();
+builder.Services.AddScoped<GetCurrentCashRegisterShift>();
+builder.Services.AddScoped<OpenCashRegisterShift>();
+builder.Services.AddScoped<CloseCashRegisterShift>();
 
 var jwtSection = builder.Configuration.GetSection(JwtOptions.SectionName);
 var issuer = jwtSection.GetValue<string>("Issuer") ?? string.Empty;
@@ -122,7 +131,23 @@ using (var scope = app.Services.CreateScope())
     if (app.Environment.IsDevelopment())
     {
         var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
-        var tenant = db.Tenants.FirstOrDefault(x => x.NormalizedName == "EMPRESA X");
+        var tenantName = "Empresa X";
+        var tenantNormalizedName = tenantName.Trim().ToUpperInvariant();
+
+        var tenant = db.Tenants.FirstOrDefault(x => x.NormalizedName == tenantNormalizedName);
+        if (tenant is null)
+        {
+            var createdAt = DateTimeOffset.UtcNow;
+            tenant = new TenantRow
+            {
+                Id = Guid.NewGuid(),
+                Name = tenantName,
+                NormalizedName = tenantNormalizedName,
+                CreatedAt = createdAt
+            };
+            db.Tenants.Add(tenant);
+            db.SaveChanges();
+        }
         if (tenant is not null)
         {
             var createdAt = DateTimeOffset.UtcNow;
@@ -158,6 +183,78 @@ using (var scope = app.Services.CreateScope())
                         NormalizedEmail = staffNormalizedEmail,
                         PasswordHash = passwordHasher.Hash("123456"),
                         Role = UserRole.Staff,
+                        CreatedAt = createdAt
+                    }
+                );
+            }
+
+            var kitchenEmail = "kitchen@empresax.local";
+            var kitchenNormalizedEmail = kitchenEmail.Trim().ToLowerInvariant();
+            if (!db.Users.Any(x => x.TenantId == tenant.Id && x.NormalizedEmail == kitchenNormalizedEmail))
+            {
+                db.Users.Add(
+                    new UserRow
+                    {
+                        Id = Guid.NewGuid(),
+                        TenantId = tenant.Id,
+                        Email = kitchenEmail,
+                        NormalizedEmail = kitchenNormalizedEmail,
+                        PasswordHash = passwordHasher.Hash("123456"),
+                        Role = UserRole.Staff,
+                        CreatedAt = createdAt
+                    }
+                );
+            }
+
+            var pdvEmail = "pdv@empresax.local";
+            var pdvNormalizedEmail = pdvEmail.Trim().ToLowerInvariant();
+            if (!db.Users.Any(x => x.TenantId == tenant.Id && x.NormalizedEmail == pdvNormalizedEmail))
+            {
+                db.Users.Add(
+                    new UserRow
+                    {
+                        Id = Guid.NewGuid(),
+                        TenantId = tenant.Id,
+                        Email = pdvEmail,
+                        NormalizedEmail = pdvNormalizedEmail,
+                        PasswordHash = passwordHasher.Hash("123456"),
+                        Role = UserRole.Pdv,
+                        CreatedAt = createdAt
+                    }
+                );
+            }
+
+            var waiterEmail = "waiter@empresax.local";
+            var waiterNormalizedEmail = waiterEmail.Trim().ToLowerInvariant();
+            if (!db.Users.Any(x => x.TenantId == tenant.Id && x.NormalizedEmail == waiterNormalizedEmail))
+            {
+                db.Users.Add(
+                    new UserRow
+                    {
+                        Id = Guid.NewGuid(),
+                        TenantId = tenant.Id,
+                        Email = waiterEmail,
+                        NormalizedEmail = waiterNormalizedEmail,
+                        PasswordHash = passwordHasher.Hash("123456"),
+                        Role = UserRole.Waiter,
+                        CreatedAt = createdAt
+                    }
+                );
+            }
+
+            var totemEmail = "totem@empresax.local";
+            var totemNormalizedEmail = totemEmail.Trim().ToLowerInvariant();
+            if (!db.Users.Any(x => x.TenantId == tenant.Id && x.NormalizedEmail == totemNormalizedEmail))
+            {
+                db.Users.Add(
+                    new UserRow
+                    {
+                        Id = Guid.NewGuid(),
+                        TenantId = tenant.Id,
+                        Email = totemEmail,
+                        NormalizedEmail = totemNormalizedEmail,
+                        PasswordHash = passwordHasher.Hash("123456"),
+                        Role = UserRole.Totem,
                         CreatedAt = createdAt
                     }
                 );
