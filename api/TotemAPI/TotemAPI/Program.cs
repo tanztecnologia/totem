@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Security.Claims;
 using System.Text;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -11,6 +13,8 @@ using TotemAPI.Features.Catalog.Application.UseCases;
 using TotemAPI.Features.Checkout.Application.Abstractions;
 using TotemAPI.Features.Checkout.Application.UseCases;
 using TotemAPI.Features.Checkout.Infrastructure;
+using TotemAPI.Features.Dashboard.Application.Abstractions;
+using TotemAPI.Features.Dashboard.Application.UseCases;
 using TotemAPI.Features.Identity.Application.Abstractions;
 using TotemAPI.Features.Identity.Application.UseCases;
 using TotemAPI.Features.Identity.Domain;
@@ -68,6 +72,7 @@ builder.Services.AddScoped<ICheckoutRepository, EfCheckoutRepository>();
 builder.Services.AddScoped<ICartRepository, EfCartRepository>();
 builder.Services.AddScoped<IKitchenSlaRepository, EfKitchenSlaRepository>();
 builder.Services.AddScoped<ICashRegisterRepository, EfCashRegisterRepository>();
+builder.Services.AddScoped<IDashboardRepository, EfDashboardRepository>();
 builder.Services.AddSingleton<ITefPaymentService>(sp =>
 {
     var options = sp.GetRequiredService<IOptions<TefApiOptions>>().Value;
@@ -106,6 +111,9 @@ builder.Services.AddScoped<PayPosOrder>();
 builder.Services.AddScoped<GetCurrentCashRegisterShift>();
 builder.Services.AddScoped<OpenCashRegisterShift>();
 builder.Services.AddScoped<CloseCashRegisterShift>();
+
+builder.Services.AddScoped<GetDashboardOverview>();
+builder.Services.AddScoped<ListDashboardOrders>();
 
 var jwtSection = builder.Configuration.GetSection(JwtOptions.SectionName);
 var issuer = jwtSection.GetValue<string>("Issuer") ?? string.Empty;
@@ -284,6 +292,46 @@ using (var scope = app.Services.CreateScope())
 
 app.UseCors("DefaultCors");
 app.UseAuthentication();
+app.Use(
+    async (context, next) =>
+    {
+        var sw = Stopwatch.StartNew();
+        try
+        {
+            await next();
+            sw.Stop();
+
+            var tenantId = context.User.FindFirstValue("tenant_id") ?? "-";
+            var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? context.User.FindFirstValue("sub") ?? "-";
+            var email = context.User.FindFirstValue(ClaimTypes.Email) ?? context.User.FindFirstValue("email") ?? "-";
+
+            app.Logger.LogInformation(
+                "HTTP {Method} {Path}{Query} => {StatusCode} in {ElapsedMs}ms tenant={TenantId} userId={UserId} email={Email}",
+                context.Request.Method,
+                context.Request.Path,
+                context.Request.QueryString,
+                context.Response.StatusCode,
+                sw.ElapsedMilliseconds,
+                tenantId,
+                userId,
+                email
+            );
+        }
+        catch (Exception ex)
+        {
+            sw.Stop();
+            app.Logger.LogError(
+                ex,
+                "HTTP {Method} {Path}{Query} FAILED in {ElapsedMs}ms",
+                context.Request.Method,
+                context.Request.Path,
+                context.Request.QueryString,
+                sw.ElapsedMilliseconds
+            );
+            throw;
+        }
+    }
+);
 app.UseAuthorization();
 
 app.MapControllers();

@@ -84,6 +84,14 @@
     {
       "key": "comanda",
       "value": "10"
+    },
+    {
+      "key": "cursorUpdatedAt",
+      "value": ""
+    },
+    {
+      "key": "cursorOrderId",
+      "value": ""
     }
   ],
   "item": [
@@ -1136,6 +1144,100 @@
                 "pos",
                 "cashier",
                 "close"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "item": [
+        {
+          "name": "Overview",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/dashboard/overview",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "dashboard",
+                "overview"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Recent Orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/dashboard/orders?limit=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "dashboard",
+                "orders"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Recent Orders (Next Page)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/dashboard/orders?limit=50&cursorUpdatedAt={{cursorUpdatedAt}}&cursorOrderId={{cursorOrderId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "dashboard",
+                "orders"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                },
+                {
+                  "key": "cursorUpdatedAt",
+                  "value": "{{cursorUpdatedAt}}"
+                },
+                {
+                  "key": "cursorOrderId",
+                  "value": "{{cursorOrderId}}"
+                }
               ]
             }
           }

@@ -31,6 +31,12 @@ import 'src/features/pdv/domain/usecases/list_pdv_orders_by_comanda.dart';
 import 'src/features/pdv/domain/usecases/pay_pdv_order.dart';
 import 'src/features/pdv/presentation/bloc/pdv_cubit.dart';
 import 'src/features/pdv/presentation/pages/pdv_page.dart';
+import 'src/features/dashboard/data/repositories/totem_api_dashboard_repository.dart';
+import 'src/features/dashboard/domain/repositories/dashboard_repository.dart';
+import 'src/features/dashboard/domain/usecases/get_dashboard_overview.dart';
+import 'src/features/dashboard/domain/usecases/list_dashboard_orders.dart';
+import 'src/features/dashboard/presentation/bloc/dashboard_cubit.dart';
+import 'src/features/dashboard/presentation/pages/dashboard_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -220,6 +226,19 @@ class _AuthedApp extends StatelessWidget {
                   catalogRepository: context.read<CatalogRepository>(),
                 )..add(const KioskLoadRequested()),
                 child: session.isWaiter ? const WaiterPage() : const KioskPage(),
+              ),
+            );
+          }
+
+          if (session.isDashboard) {
+            return RepositoryProvider<DashboardRepository>(
+              create: (_) => TotemApiDashboardRepository(baseUrl: baseUrl, token: session.token),
+              child: BlocProvider(
+                create: (context) => DashboardCubit(
+                  getOverview: GetDashboardOverview(context.read<DashboardRepository>()),
+                  listOrders: ListDashboardOrders(context.read<DashboardRepository>()),
+                ),
+                child: const DashboardPage(),
               ),
             );
           }

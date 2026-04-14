@@ -19,6 +19,7 @@ class AuthSession {
 
   bool get isWaiter => role == 'Waiter';
   bool get isTotem => role == 'Totem';
-  bool get isKitchen => role == 'Admin' || role == 'Staff';
+  bool get isDashboard => role == 'Admin';
+  bool get isKitchen => role == 'Staff';
   bool get isPdv => role == 'Pdv';
 }

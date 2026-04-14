@@ -65,7 +65,7 @@ class TotemApiPdvRepository implements PdvRepository {
         .map((e) => (e as Map).cast<String, Object?>())
         .map(
           (m) => PdvPaymentMethodSummaryItem(
-            method: _paymentMethodFromApi((m['method'] as String?) ?? ''),
+            method: _paymentMethodFromApi(m['method']?.toString() ?? ''),
             amountCents: (m['amountCents'] as num?)?.toInt() ?? 0,
           ),
         )
@@ -105,13 +105,13 @@ class TotemApiPdvRepository implements PdvRepository {
         .map((e) => (e as Map).cast<String, Object?>())
         .map(
           (m) => PdvOrder(
-            orderId: (m['orderId'] as String?) ?? '',
-            comanda: (m['comanda'] as String?) ?? trimmed,
-            status: (m['status'] as String?) ?? '',
-            kitchenStatus: (m['kitchenStatus'] as String?) ?? '',
+            orderId: m['orderId']?.toString() ?? '',
+            comanda: m['comanda']?.toString() ?? trimmed,
+            status: m['status']?.toString() ?? '',
+            kitchenStatus: m['kitchenStatus']?.toString() ?? '',
             totalCents: (m['totalCents'] as num?)?.toInt() ?? 0,
-            createdAt: DateTime.parse((m['createdAt'] as String?) ?? DateTime.now().toIso8601String()).toLocal(),
-            updatedAt: DateTime.parse((m['updatedAt'] as String?) ?? DateTime.now().toIso8601String()).toLocal(),
+            createdAt: DateTime.parse(m['createdAt']?.toString() ?? DateTime.now().toIso8601String()).toLocal(),
+            updatedAt: DateTime.parse(m['updatedAt']?.toString() ?? DateTime.now().toIso8601String()).toLocal(),
           ),
         )
         .where((o) => o.orderId.isNotEmpty)
@@ -138,30 +138,30 @@ class TotemApiPdvRepository implements PdvRepository {
 
     final payment = (resp['payment'] as Map?)?.cast<String, Object?>();
     return PdvPaymentResult(
-      orderId: (resp['orderId'] as String?) ?? trimmedOrderId,
-      orderStatus: (resp['orderStatus'] as String?) ?? '',
-      kitchenStatus: (resp['kitchenStatus'] as String?) ?? '',
-      paymentStatus: (payment?['status'] as String?) ?? '',
-      transactionId: (payment?['transactionId'] as String?) ?? '',
+      orderId: resp['orderId']?.toString() ?? trimmedOrderId,
+      orderStatus: resp['orderStatus']?.toString() ?? '',
+      kitchenStatus: resp['kitchenStatus']?.toString() ?? '',
+      paymentStatus: payment?['status']?.toString() ?? '',
+      transactionId: payment?['transactionId']?.toString() ?? '',
     );
   }
 }
 
 PdvCashRegisterShift _shiftFromApi(Map<String, Object?> m) {
-  final rawStatus = (m['status'] as String?) ?? '';
+  final rawStatus = m['status']?.toString() ?? '';
   final status = switch (rawStatus) {
     'Open' => PdvCashRegisterShiftStatus.open,
     'Closed' => PdvCashRegisterShiftStatus.closed,
     _ => PdvCashRegisterShiftStatus.closed,
   };
 
-  final openedAtRaw = (m['openedAt'] as String?) ?? DateTime.now().toIso8601String();
-  final closedAtRaw = m['closedAt'] as String?;
+  final openedAtRaw = m['openedAt']?.toString() ?? DateTime.now().toIso8601String();
+  final closedAtRaw = m['closedAt']?.toString();
 
   return PdvCashRegisterShift(
-    id: (m['id'] as String?) ?? '',
+    id: m['id']?.toString() ?? '',
     status: status,
-    openedByEmail: (m['openedByEmail'] as String?) ?? '',
+    openedByEmail: m['openedByEmail']?.toString() ?? '',
     openingCashCents: (m['openingCashCents'] as num?)?.toInt() ?? 0,
     openedAt: DateTime.parse(openedAtRaw).toLocal(),
     closingCashCents: (m['closingCashCents'] as num?)?.toInt(),

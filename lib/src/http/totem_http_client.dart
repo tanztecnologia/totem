@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 import 'totem_http_exception.dart';
 
@@ -16,6 +18,7 @@ class TotemHttpClient {
     Duration connectTimeout = const Duration(seconds: 10),
     Duration receiveTimeout = const Duration(seconds: 30),
     TotemTokenProvider? tokenProvider,
+    bool enableLogging = true,
   }) {
     final dio = Dio(
       BaseOptions(
@@ -29,6 +32,13 @@ class TotemHttpClient {
       ),
     );
 
+    const maxBodyChars = 4000;
+
+    void emitLog(String message) {
+      developer.log(message, name: 'TotemHttp');
+      if (kDebugMode) debugPrint(message);
+    }
+
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
@@ -41,9 +51,71 @@ class TotemHttpClient {
           if (options.data != null) {
             options.headers['Content-Type'] = 'application/json';
           }
+
+          if (enableLogging) {
+            final uri = options.uri;
+            final method = options.method.toUpperCase();
+
+            final headers = _sanitizeHeaders(options.headers);
+            final data = _sanitizeBody(options.data);
+
+            final bodyPreview = data == null ? '' : _truncate(data.toString(), maxBodyChars);
+            final headersPreview = headers.isEmpty ? '' : _truncate(headers.toString(), maxBodyChars);
+
+            final summary = '[HTTP] $method $uri';
+            final details = <String>[
+              if (headersPreview.isNotEmpty) 'headers=$headersPreview',
+              if (bodyPreview.isNotEmpty) 'body=$bodyPreview',
+            ].join(' ');
+
+            emitLog(details.isEmpty ? summary : '$summary $details');
+            options.extra['_totem_http_start_ms'] = DateTime.now().millisecondsSinceEpoch;
+          }
+
           handler.next(options);
         },
+        onResponse: (response, handler) {
+          if (enableLogging) {
+            final req = response.requestOptions;
+            final uri = req.uri;
+            final method = req.method.toUpperCase();
+            final status = response.statusCode ?? 0;
+
+            final startedMs = req.extra['_totem_http_start_ms'] as int?;
+            final elapsedMs = startedMs == null ? null : DateTime.now().millisecondsSinceEpoch - startedMs;
+
+            final data = _sanitizeBody(response.data);
+            final bodyPreview = data == null ? '' : _truncate(data.toString(), maxBodyChars);
+
+            final prefix = elapsedMs == null
+                ? '[HTTP] $method $uri => $status'
+                : '[HTTP] $method $uri => $status in ${elapsedMs}ms';
+
+            emitLog(bodyPreview.isEmpty ? prefix : '$prefix body=$bodyPreview');
+          }
+          handler.next(response);
+        },
         onError: (error, handler) {
+          if (enableLogging) {
+            final req = error.requestOptions;
+            final uri = req.uri;
+            final method = req.method.toUpperCase();
+            final status = error.response?.statusCode;
+
+            final startedMs = req.extra['_totem_http_start_ms'] as int?;
+            final elapsedMs = startedMs == null ? null : DateTime.now().millisecondsSinceEpoch - startedMs;
+
+            final data = _sanitizeBody(error.response?.data);
+            final bodyPreview = data == null ? '' : _truncate(data.toString(), maxBodyChars);
+
+            final prefix = elapsedMs == null
+                ? '[HTTP] $method $uri => ERROR${status == null ? '' : ' $status'}'
+                : '[HTTP] $method $uri => ERROR${status == null ? '' : ' $status'} in ${elapsedMs}ms';
+
+            final msg = (error.message ?? '').trim();
+            final full = bodyPreview.isEmpty ? '$prefix $msg'.trim() : '$prefix $msg body=$bodyPreview'.trim();
+            emitLog(full);
+          }
           handler.reject(error);
         },
       ),
@@ -178,4 +250,47 @@ class TotemHttpClient {
     if (data is String && data.trim().isNotEmpty) return data.trim();
     return null;
   }
+}
+
+Map<String, Object?> _sanitizeHeaders(Map<String, dynamic> headers) {
+  final sanitized = <String, Object?>{};
+  headers.forEach((key, value) {
+    final k = key.toString();
+    final lower = k.toLowerCase();
+    if (lower == 'authorization') {
+      sanitized[k] = 'Bearer ***';
+      return;
+    }
+    if (lower.contains('api-key') || lower.contains('apikey')) {
+      sanitized[k] = '***';
+      return;
+    }
+    sanitized[k] = value;
+  });
+  return sanitized;
+}
+
+Object? _sanitizeBody(Object? body) {
+  if (body is Map) {
+    final out = <String, Object?>{};
+    body.forEach((key, value) {
+      final k = key.toString();
+      final lower = k.toLowerCase();
+      if (lower.contains('password') || lower.contains('token') || lower.contains('apikey') || lower.contains('api_key')) {
+        out[k] = '***';
+        return;
+      }
+      out[k] = _sanitizeBody(value);
+    });
+    return out;
+  }
+  if (body is List) {
+    return body.map(_sanitizeBody).toList(growable: false);
+  }
+  return body;
+}
+
+String _truncate(String v, int maxChars) {
+  if (v.length <= maxChars) return v;
+  return '${v.substring(0, maxChars)}…';
 }
