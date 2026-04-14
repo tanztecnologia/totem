@@ -37,6 +37,23 @@ builder.Services.AddOpenApi();
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 builder.Services.Configure<TefApiOptions>(builder.Configuration.GetSection(TefApiOptions.SectionName));
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(
+        "DefaultCors",
+        policy =>
+        {
+            var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
+            if (allowedOrigins.Length > 0)
+            {
+                policy.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod();
+                return;
+            }
+            policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
+        }
+    );
+});
+
 var localDb = builder.Configuration.GetConnectionString("LocalDb") ?? "Data Source=totem.local.db";
 builder.Services.AddDbContext<TotemDbContext>(options => options.UseSqlite(localDb));
 
@@ -265,6 +282,7 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
+app.UseCors("DefaultCors");
 app.UseAuthentication();
 app.UseAuthorization();
 
