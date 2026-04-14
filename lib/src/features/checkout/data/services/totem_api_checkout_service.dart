@@ -31,7 +31,6 @@ class TotemApiCheckoutService implements CheckoutService {
   late final TotemHttpClient _http;
 
   String? _token;
-  Map<String, String>? _skuIdByCode;
 
   @override
   Future<CheckoutStartResult> startCheckout({
@@ -41,13 +40,10 @@ class TotemApiCheckoutService implements CheckoutService {
     String? comanda,
   }) async {
     await _getToken();
-    final skuIdByCode = await _getSkuIdByCode();
 
     final qtyBySkuId = <String, int>{};
     for (final item in items) {
-      for (final code in item.skuCodes) {
-        final skuId = skuIdByCode[code.trim().toUpperCase()];
-        if (skuId == null) continue;
+      for (final skuId in item.skuIds) {
         qtyBySkuId.update(skuId, (v) => v + item.quantity, ifAbsent: () => item.quantity);
       }
     }
@@ -128,23 +124,6 @@ class TotemApiCheckoutService implements CheckoutService {
     if (token.isEmpty) throw Exception('Falha ao autenticar no /api/auth/login.');
     _token = token;
     return token;
-  }
-
-  Future<Map<String, String>> _getSkuIdByCode() async {
-    final cached = _skuIdByCode;
-    if (cached != null) return cached;
-
-    final list = await _http.getJson<List<dynamic>>('/api/skus');
-    final map = <String, String>{};
-    for (final raw in list) {
-      if (raw is! Map) continue;
-      final code = (raw['code'] as String?)?.trim().toUpperCase();
-      final id = raw['id'] as String?;
-      if (code == null || code.isEmpty || id == null || id.isEmpty) continue;
-      map[code] = id;
-    }
-    _skuIdByCode = map;
-    return map;
   }
 
   Future<String> _createCart() async {

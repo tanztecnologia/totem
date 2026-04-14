@@ -45,6 +45,66 @@ public sealed class SkusController : ControllerBase
         }
     }
 
+    [HttpGet("by-code")]
+    public async Task<ActionResult<SkuResult>> GetByCode(
+        [FromServices] GetSkuByCode getSkuByCode,
+        [FromQuery] string code,
+        CancellationToken ct
+    )
+    {
+        if (!TryGetTenantId(out var tenantId)) return Unauthorized();
+        if (!CanReadSkus()) return Forbid();
+
+        try
+        {
+            var result = await getSkuByCode.HandleAsync(new GetSkuByCodeQuery(tenantId, code), ct);
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpGet("search")]
+    public async Task<ActionResult<SkuSearchPageResult>> Search(
+        [FromServices] SearchSkusPage searchSkusPage,
+        [FromQuery] string? query,
+        [FromQuery] int limit = 50,
+        [FromQuery] string? cursorCode = null,
+        [FromQuery] Guid? cursorId = null,
+        [FromQuery] bool includeInactive = true,
+        CancellationToken ct = default
+    )
+    {
+        if (!TryGetTenantId(out var tenantId)) return Unauthorized();
+        if (!CanReadSkus()) return Forbid();
+
+        try
+        {
+            var result = await searchSkusPage.HandleAsync(
+                new SearchSkusPageQuery(
+                    TenantId: tenantId,
+                    Query: query,
+                    Limit: limit,
+                    CursorCode: cursorCode,
+                    CursorId: cursorId,
+                    IncludeInactive: includeInactive
+                ),
+                ct
+            );
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { error = ex.Message });
+        }
+    }
+
     [HttpPost]
     public async Task<ActionResult<SkuResult>> Create(
         [FromServices] CreateSku createSku,
@@ -60,7 +120,7 @@ public sealed class SkusController : ControllerBase
             var result = await createSku.HandleAsync(
                 new CreateSkuCommand(
                     TenantId: tenantId,
-                    Code: request.Code,
+                    CategoryCode: request.CategoryCode,
                     Name: request.Name,
                     PriceCents: request.PriceCents,
                     AveragePrepSeconds: request.AveragePrepSeconds,
@@ -98,7 +158,7 @@ public sealed class SkusController : ControllerBase
                 new UpdateSkuCommand(
                     TenantId: tenantId,
                     SkuId: id,
-                    Code: request.Code,
+                    CategoryCode: request.CategoryCode,
                     Name: request.Name,
                     PriceCents: request.PriceCents,
                     AveragePrepSeconds: request.AveragePrepSeconds,
@@ -162,7 +222,7 @@ public sealed class SkusController : ControllerBase
 }
 
 public sealed record CreateSkuRequest(
-    string Code,
+    string CategoryCode,
     string Name,
     int PriceCents,
     int? AveragePrepSeconds,
@@ -171,7 +231,7 @@ public sealed record CreateSkuRequest(
 );
 
 public sealed record UpdateSkuRequest(
-    string Code,
+    string CategoryCode,
     string Name,
     int PriceCents,
     int? AveragePrepSeconds,

@@ -420,6 +420,64 @@
       "name": "Catalog",
       "item": [
         {
+          "name": "List Categories",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/categories?includeInactive=true",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "categories"
+              ],
+              "query": [
+                {
+                  "key": "includeInactive",
+                  "value": "true"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Category",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Bebidas\",\n  \"slug\": \"drinks\",\n  \"isActive\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/categories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "categories"
+              ]
+            }
+          }
+        },
+        {
           "name": "List SKUs",
           "request": {
             "method": "GET",
@@ -437,6 +495,72 @@
               "path": [
                 "api",
                 "skus"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get SKU By Code",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/skus/by-code?code=00001",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "skus",
+                "by-code"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "00001"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Search SKUs (Paged)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/skus/search?query=DRINKS&limit=50&includeInactive=true",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "skus",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "query",
+                  "value": "DRINKS"
+                },
+                {
+                  "key": "limit",
+                  "value": "50"
+                },
+                {
+                  "key": "includeInactive",
+                  "value": "true"
+                }
               ]
             }
           }
@@ -471,7 +595,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"code\": \"X-SALADA\",\n  \"name\": \"X Salada\",\n  \"priceCents\": 2800,\n  \"averagePrepSeconds\": 420,\n  \"imageUrl\": null,\n  \"isActive\": true\n}"
+              "raw": "{\n  \"categoryCode\": \"00001\",\n  \"name\": \"X Salada\",\n  \"priceCents\": 2800,\n  \"averagePrepSeconds\": 420,\n  \"imageUrl\": null,\n  \"isActive\": true\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/skus",
@@ -524,7 +648,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"code\": \"X-SALADA\",\n  \"name\": \"X Salada (Atualizado)\",\n  \"priceCents\": 2900,\n  \"averagePrepSeconds\": 480,\n  \"imageUrl\": null,\n  \"isActive\": true\n}"
+              "raw": "{\n  \"categoryCode\": \"00001\",\n  \"name\": \"X Salada (Atualizado)\",\n  \"priceCents\": 2900,\n  \"averagePrepSeconds\": 480,\n  \"imageUrl\": null,\n  \"isActive\": true\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/skus/{{skuId}}",

@@ -1,14 +1,11 @@
 namespace TotemAPI.Features.Catalog.Domain;
 
-public sealed record Sku(
+public sealed record Category(
     Guid Id,
     Guid TenantId,
-    string CategoryCode,
     string Code,
+    string Slug,
     string Name,
-    int PriceCents,
-    int? AveragePrepSeconds,
-    string? ImageUrl,
     bool IsActive,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt

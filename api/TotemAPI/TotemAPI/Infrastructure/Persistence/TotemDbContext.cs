@@ -1,3 +1,4 @@
+using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using TotemAPI.Features.Cart.Domain;
 using TotemAPI.Features.Catalog.Domain;
@@ -17,6 +18,7 @@ public sealed class TotemDbContext : DbContext
 
     public DbSet<TenantRow> Tenants => Set<TenantRow>();
     public DbSet<UserRow> Users => Set<UserRow>();
+    public DbSet<CategoryRow> Categories => Set<CategoryRow>();
     public DbSet<SkuRow> Skus => Set<SkuRow>();
     public DbSet<OrderRow> Orders => Set<OrderRow>();
     public DbSet<OrderItemRow> OrderItems => Set<OrderItemRow>();
@@ -57,6 +59,7 @@ public sealed class TotemDbContext : DbContext
             b.ToTable("skus");
             b.HasKey(x => x.Id);
             b.Property(x => x.TenantId).IsRequired();
+            b.Property(x => x.CategoryCode).IsRequired();
             b.Property(x => x.Code).IsRequired();
             b.Property(x => x.NormalizedCode).IsRequired();
             b.Property(x => x.Name).IsRequired();
@@ -68,6 +71,24 @@ public sealed class TotemDbContext : DbContext
             b.Property(x => x.UpdatedAt).IsRequired();
             b.HasIndex(x => new { x.TenantId, x.NormalizedCode }).IsUnique();
             b.HasIndex(x => x.TenantId);
+            b.HasIndex(x => new { x.TenantId, x.CategoryCode });
+        });
+
+        modelBuilder.Entity<CategoryRow>(b =>
+        {
+            b.ToTable("categories");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.TenantId).IsRequired();
+            b.Property(x => x.Code).IsRequired();
+            b.Property(x => x.Slug).IsRequired();
+            b.Property(x => x.Name).IsRequired();
+            b.Property(x => x.IsActive).IsRequired();
+            b.Property(x => x.CreatedAt).IsRequired();
+            b.Property(x => x.UpdatedAt).IsRequired();
+            b.HasIndex(x => x.TenantId);
+            b.HasIndex(x => new { x.TenantId, x.Code }).IsUnique();
+            b.HasIndex(x => new { x.TenantId, x.Slug }).IsUnique();
+            b.HasIndex(x => new { x.TenantId, x.IsActive });
         });
 
         modelBuilder.Entity<OrderRow>(b =>
@@ -215,10 +236,23 @@ public sealed class UserRow
     public DateTimeOffset CreatedAt { get; set; }
 }
 
+public sealed class CategoryRow
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public string Code { get; set; } = string.Empty;
+    public string Slug { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public bool IsActive { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
+}
+
 public sealed class SkuRow
 {
     public Guid Id { get; set; }
     public Guid TenantId { get; set; }
+    public string CategoryCode { get; set; } = string.Empty;
     public string Code { get; set; } = string.Empty;
     public string NormalizedCode { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
@@ -346,6 +380,7 @@ internal static class SkuMapping
         new(
             row.Id,
             row.TenantId,
+            row.CategoryCode,
             row.Code,
             row.Name,
             row.PriceCents,
@@ -357,6 +392,42 @@ internal static class SkuMapping
         );
 
     public static string NormalizeCode(string code) => (code ?? string.Empty).Trim().ToUpperInvariant();
+}
+
+internal static class CategoryMapping
+{
+    public static Category ToDomain(this CategoryRow row) =>
+        new(
+            row.Id,
+            row.TenantId,
+            row.Code,
+            row.Slug,
+            row.Name,
+            row.IsActive,
+            row.CreatedAt,
+            row.UpdatedAt
+        );
+
+    public static string NormalizeNumericCode(string code)
+    {
+        var raw = (code ?? string.Empty).Trim();
+        if (raw.Length == 0) return string.Empty;
+        if (!int.TryParse(raw, out var n)) return string.Empty;
+        if (n <= 0) return string.Empty;
+        return n.ToString("D5");
+    }
+
+    public static string NormalizeSlug(string code)
+    {
+        var raw = (code ?? string.Empty).Trim().ToLowerInvariant();
+        if (raw.Length == 0) return string.Empty;
+
+        var chars = raw.Select(ch => char.IsLetterOrDigit(ch) ? ch : '-').ToArray();
+        var s = new string(chars);
+        while (s.Contains("--", StringComparison.Ordinal)) s = s.Replace("--", "-", StringComparison.Ordinal);
+        s = s.Trim('-');
+        return s;
+    }
 }
 
 internal static class OrderMapping

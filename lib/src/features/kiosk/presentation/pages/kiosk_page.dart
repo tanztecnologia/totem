@@ -426,7 +426,7 @@ void _showCheckout(
         return CheckoutItem(
           id: e.key,
           title: product.name,
-          skuCodes: <String>[
+          skuIds: <String>[
             product.baseSku.id,
             ...line.addedSkuIds,
           ],

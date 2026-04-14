@@ -32,6 +32,8 @@ import 'src/features/pdv/domain/usecases/pay_pdv_order.dart';
 import 'src/features/pdv/presentation/bloc/pdv_cubit.dart';
 import 'src/features/pdv/presentation/pages/pdv_page.dart';
 import 'src/features/dashboard/data/repositories/totem_api_dashboard_repository.dart';
+import 'src/features/dashboard/data/repositories/totem_api_catalog_admin_repository.dart';
+import 'src/features/dashboard/domain/repositories/catalog_admin_repository.dart';
 import 'src/features/dashboard/domain/repositories/dashboard_repository.dart';
 import 'src/features/dashboard/domain/usecases/get_dashboard_overview.dart';
 import 'src/features/dashboard/domain/usecases/list_dashboard_orders.dart';
@@ -231,8 +233,15 @@ class _AuthedApp extends StatelessWidget {
           }
 
           if (session.isDashboard) {
-            return RepositoryProvider<DashboardRepository>(
-              create: (_) => TotemApiDashboardRepository(baseUrl: baseUrl, token: session.token),
+            return MultiRepositoryProvider(
+              providers: [
+                RepositoryProvider<DashboardRepository>(
+                  create: (_) => TotemApiDashboardRepository(baseUrl: baseUrl, token: session.token),
+                ),
+                RepositoryProvider<CatalogAdminRepository>(
+                  create: (_) => TotemApiCatalogAdminRepository(baseUrl: baseUrl, token: session.token),
+                ),
+              ],
               child: BlocProvider(
                 create: (context) => DashboardCubit(
                   getOverview: GetDashboardOverview(context.read<DashboardRepository>()),

@@ -176,10 +176,10 @@ class _WaiterPageState extends State<WaiterPage> {
           return CheckoutItem(
             id: e.key,
             title: product.name,
-            skuCodes: <String>[
-              product.baseSku.id,
-              ...line.addedSkuIds,
-            ],
+            skuIds: <String>[
+            product.baseSku.id,
+            ...line.addedSkuIds,
+          ],
             subtitle: _subtitleForLine(product, line),
             quantity: e.value,
             unitPriceCents: unitCents,

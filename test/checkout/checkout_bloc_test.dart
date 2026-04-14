@@ -23,7 +23,7 @@ void main() {
           CheckoutItem(
             id: 'line-1',
             title: 'Hambúrguer',
-            skuCodes: <String>['X-BURGER'],
+            skuIds: <String>['X-BURGER'],
             quantity: 2,
             unitPriceCents: 1000,
           ),
@@ -66,7 +66,7 @@ void main() {
           CheckoutItem(
             id: 'line-1',
             title: 'Hambúrguer',
-            skuCodes: <String>['X-BURGER'],
+            skuIds: <String>['X-BURGER'],
             quantity: 1,
             unitPriceCents: 1000,
           ),
@@ -103,7 +103,7 @@ void main() {
           CheckoutItem(
             id: 'line-1',
             title: 'Hambúrguer',
-            skuCodes: <String>['X-BURGER'],
+            skuIds: <String>['X-BURGER'],
             quantity: 1,
             unitPriceCents: 1000,
           ),
@@ -135,7 +135,7 @@ void main() {
           CheckoutItem(
             id: 'line-1',
             title: 'Hambúrguer',
-            skuCodes: <String>['X-BURGER'],
+            skuIds: <String>['X-BURGER'],
             quantity: 2,
             unitPriceCents: 1000,
           ),

@@ -37,7 +37,17 @@ class ApiCatalogRepository implements CatalogRepository {
   @override
   Future<List<KioskCategory>> getCategories() async {
     final skus = await _listActiveSkus();
-    return mapSkusToCategories(skus);
+    final categoriesRaw = await _authedGet<List<dynamic>>(
+      '/api/categories',
+      queryParameters: <String, dynamic>{
+        'includeInactive': false,
+      },
+    );
+    final categories = categoriesRaw
+        .whereType<Map>()
+        .map((e) => ApiCategoryDto.fromMap(e.cast<String, dynamic>()))
+        .toList(growable: false);
+    return mapSkusToCategories(skus, categories);
   }
 
   @override
@@ -116,17 +126,14 @@ class ApiCatalogRepository implements CatalogRepository {
 }
 
 @visibleForTesting
-List<KioskCategory> mapSkusToCategories(List<ApiSkuDto> skus) {
-  final ids = skus.map((s) => categoryIdFromSkuCode(s.code)).toSet();
-  final ordered = ids.toList()..sort();
+List<KioskCategory> mapSkusToCategories(List<ApiSkuDto> skus, List<ApiCategoryDto> categories) {
+  final usedCategoryCodes = skus.map((s) => s.categoryCode).toSet();
 
-  return ordered
-      .map(
-        (id) => KioskCategory(
-          id: id,
-          name: displayNameFromCategoryId(id),
-        ),
-      )
+  final availableCategories = categories.where((c) => usedCategoryCodes.contains(c.code)).toList();
+  availableCategories.sort((a, b) => a.name.compareTo(b.name));
+
+  return availableCategories
+      .map((c) => KioskCategory(id: c.code, name: c.name))
       .toList(growable: false);
 }
 
@@ -136,14 +143,14 @@ List<kiosk.Product> mapSkusToProductsForCategory(
   String categoryId,
 ) {
   final products = skus
-      .where((s) => categoryIdFromSkuCode(s.code) == categoryId)
+      .where((s) => s.categoryCode == categoryId)
       .map(
         (s) => kiosk.Product(
-          id: s.code,
-          categoryId: categoryIdFromSkuCode(s.code),
+          id: s.id,
+          categoryId: categoryId,
           name: s.name,
           baseSku: kiosk.Sku(
-            id: s.code,
+            id: s.id,
             name: s.name,
             priceCents: s.priceCents,
             imageUrl: s.imageUrl,
@@ -157,26 +164,10 @@ List<kiosk.Product> mapSkusToProductsForCategory(
   return products;
 }
 
-@visibleForTesting
-String categoryIdFromSkuCode(String code) {
-  final trimmed = code.trim();
-  if (trimmed.isEmpty) return 'outros';
-  final parts = trimmed.split(RegExp(r'[-_ ]+')).where((p) => p.trim().isNotEmpty).toList();
-  if (parts.isEmpty) return 'outros';
-  return parts.first.toLowerCase();
-}
-
-@visibleForTesting
-String displayNameFromCategoryId(String id) {
-  final trimmed = id.trim();
-  if (trimmed.isEmpty) return 'Outros';
-  final lower = trimmed.toLowerCase();
-  return lower.substring(0, 1).toUpperCase() + lower.substring(1);
-}
-
 class ApiSkuDto {
   ApiSkuDto({
     required this.id,
+    required this.categoryCode,
     required this.code,
     required this.name,
     required this.priceCents,
@@ -185,6 +176,7 @@ class ApiSkuDto {
   });
 
   final String id;
+  final String categoryCode;
   final String code;
   final String name;
   final int priceCents;
@@ -194,11 +186,32 @@ class ApiSkuDto {
   factory ApiSkuDto.fromMap(Map<String, dynamic> json) {
     return ApiSkuDto(
       id: (json['id'] as String?) ?? '',
+      categoryCode: ((json['categoryCode'] as String?) ?? '').trim(),
       code: ((json['code'] as String?) ?? '').trim().toUpperCase(),
       name: ((json['name'] as String?) ?? '').trim(),
       priceCents: (json['priceCents'] as num?)?.toInt() ?? 0,
       imageUrl: (json['imageUrl'] as String?)?.trim(),
       isActive: (json['isActive'] as bool?) ?? true,
+    );
+  }
+}
+
+class ApiCategoryDto {
+  ApiCategoryDto({
+    required this.code,
+    required this.slug,
+    required this.name,
+  });
+
+  final String code;
+  final String slug;
+  final String name;
+
+  factory ApiCategoryDto.fromMap(Map<String, dynamic> json) {
+    return ApiCategoryDto(
+      code: ((json['code'] as String?) ?? '').trim(),
+      slug: ((json['slug'] as String?) ?? '').trim().toLowerCase(),
+      name: ((json['name'] as String?) ?? '').trim(),
     );
   }
 }

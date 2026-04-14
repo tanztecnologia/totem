@@ -6,7 +6,7 @@ namespace TotemAPI.Features.Catalog.Application.UseCases;
 public sealed record UpdateSkuCommand(
     Guid TenantId,
     Guid SkuId,
-    string Code,
+    string CategoryCode,
     string Name,
     int PriceCents,
     int? AveragePrepSeconds,
@@ -16,23 +16,25 @@ public sealed record UpdateSkuCommand(
 
 public sealed class UpdateSku
 {
-    public UpdateSku(ISkuRepository skus)
+    public UpdateSku(ISkuRepository skus, ICategoryRepository categories)
     {
         _skus = skus;
+        _categories = categories;
     }
 
     private readonly ISkuRepository _skus;
+    private readonly ICategoryRepository _categories;
 
     public async Task<SkuResult?> HandleAsync(UpdateSkuCommand command, CancellationToken ct)
     {
         if (command.TenantId == Guid.Empty) throw new ArgumentException("TenantId inválido.");
         if (command.SkuId == Guid.Empty) throw new ArgumentException("SkuId inválido.");
+        var categoryCode = (command.CategoryCode ?? string.Empty).Trim();
+        if (categoryCode.Length < 1) throw new ArgumentException("CategoryCode inválido.");
 
-        var code = (command.Code ?? string.Empty).Trim();
         var name = (command.Name ?? string.Empty).Trim();
         var imageUrl = string.IsNullOrWhiteSpace(command.ImageUrl) ? null : command.ImageUrl.Trim();
 
-        if (code.Length < 2) throw new ArgumentException("Code inválido.");
         if (name.Length < 2) throw new ArgumentException("Name inválido.");
         if (command.PriceCents < 0) throw new ArgumentException("PriceCents inválido.");
         if (command.AveragePrepSeconds is not null && command.AveragePrepSeconds <= 0)
@@ -41,13 +43,14 @@ public sealed class UpdateSku
         var current = await _skus.GetByIdAsync(command.TenantId, command.SkuId, ct);
         if (current is null) return null;
 
-        var existingCode = await _skus.GetByCodeAsync(command.TenantId, code, ct);
-        if (existingCode is not null && existingCode.Id != command.SkuId) throw new InvalidOperationException("Code já está em uso.");
+        var category = await _categories.GetByCodeAsync(command.TenantId, categoryCode, ct);
+        if (category is null) throw new InvalidOperationException("Categoria não encontrada.");
 
         var updated = new Sku(
             Id: current.Id,
             TenantId: current.TenantId,
-            Code: code,
+            CategoryCode: category.Code,
+            Code: current.Code,
             Name: name,
             PriceCents: command.PriceCents,
             AveragePrepSeconds: command.AveragePrepSeconds,
@@ -58,6 +61,6 @@ public sealed class UpdateSku
         );
 
         await _skus.UpdateAsync(updated, ct);
-        return new SkuResult(updated.Id, updated.TenantId, updated.Code, updated.Name, updated.PriceCents, updated.AveragePrepSeconds, updated.ImageUrl, updated.IsActive);
+        return new SkuResult(updated.Id, updated.TenantId, updated.CategoryCode, updated.Code, updated.Name, updated.PriceCents, updated.AveragePrepSeconds, updated.ImageUrl, updated.IsActive);
     }
 }
