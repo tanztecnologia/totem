@@ -11,11 +11,11 @@
     },
     {
       "key": "tenantName",
-      "value": "Empresa X"
+      "value": "TANZ"
     },
     {
       "key": "adminEmail",
-      "value": "admin@empresax.local"
+      "value": "admin@tanz.local"
     },
     {
       "key": "adminPassword",
@@ -23,7 +23,7 @@
     },
     {
       "key": "totemEmail",
-      "value": "totem@empresax.local"
+      "value": "totem@tanz.local"
     },
     {
       "key": "totemPassword",
@@ -31,7 +31,7 @@
     },
     {
       "key": "pdvEmail",
-      "value": "pdv@empresax.local"
+      "value": "pdv@tanz.local"
     },
     {
       "key": "pdvPassword",
@@ -39,7 +39,7 @@
     },
     {
       "key": "waiterEmail",
-      "value": "waiter@empresax.local"
+      "value": "waiter@tanz.local"
     },
     {
       "key": "waiterPassword",
@@ -47,7 +47,7 @@
     },
     {
       "key": "kitchenEmail",
-      "value": "kitchen@empresax.local"
+      "value": "kitchen@tanz.local"
     },
     {
       "key": "kitchenPassword",
@@ -95,7 +95,7 @@
     },
     {
       "key": "flowSkuCode",
-      "value": "00010"
+      "value": "TZ-BURGER-CLASSIC"
     },
     {
       "key": "flowQuantity",
