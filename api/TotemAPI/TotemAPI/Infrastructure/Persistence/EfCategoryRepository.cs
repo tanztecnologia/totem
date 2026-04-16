@@ -42,10 +42,15 @@ public sealed class EfCategoryRepository : ICategoryRepository
             await conn.OpenAsync(ct);
 
         await using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT COALESCE(MAX(CAST(Code AS INTEGER)), 0) FROM categories WHERE TenantId = $tenantId";
+        var provider = _db.Database.ProviderName ?? string.Empty;
+        var isMySql = provider.Contains("MySql", StringComparison.OrdinalIgnoreCase);
+
+        cmd.CommandText = isMySql
+            ? "SELECT COALESCE(MAX(CAST(Code AS UNSIGNED)), 0) FROM categories WHERE TenantId = @tenantId AND Code REGEXP '^[0-9]+$'"
+            : "SELECT COALESCE(MAX(CAST(Code AS INTEGER)), 0) FROM categories WHERE TenantId = $tenantId";
         var p = cmd.CreateParameter();
-        p.ParameterName = "$tenantId";
-        p.Value = tenantId.ToString();
+        p.ParameterName = isMySql ? "@tenantId" : "$tenantId";
+        p.Value = tenantId.ToString("D");
         cmd.Parameters.Add(p);
 
         var scalar = await cmd.ExecuteScalarAsync(ct);

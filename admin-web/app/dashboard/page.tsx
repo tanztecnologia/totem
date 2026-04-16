@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { errorMessage } from "../lib/api";
 import { getDashboardOverview, formatMoney, type DashboardOverview } from "./lib/dashboard";
 
@@ -21,6 +21,16 @@ function formatDateInput(d: Date) {
   return `${y}-${m}-${day}`;
 }
 
+function parseDateInputLocal(v: string): Date {
+  const parts = v.split("-");
+  if (parts.length !== 3) return new Date(v);
+  const y = Number(parts[0]);
+  const m = Number(parts[1]);
+  const d = Number(parts[2]);
+  if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return new Date(v);
+  return new Date(y, m - 1, d);
+}
+
 export default function DashboardOverviewPage() {
   const [fromDate, setFromDate] = useState(() => {
     const d = new Date();
@@ -29,36 +39,38 @@ export default function DashboardOverviewPage() {
   });
   const [toDate, setToDate] = useState(() => formatDateInput(new Date()));
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [overview, setOverview] = useState<DashboardOverview | null>(null);
 
   const query = useMemo(() => {
-    const from = startOfDayIso(new Date(fromDate));
-    const to = endOfDayIso(new Date(toDate));
+    const from = startOfDayIso(parseDateInputLocal(fromDate));
+    const to = endOfDayIso(parseDateInputLocal(toDate));
     return { from, to };
   }, [fromDate, toDate]);
 
-  useEffect(() => {
-    let cancelled = false;
-    async function run() {
-      setLoading(true);
-      setError(null);
-      try {
-        const resp = await getDashboardOverview(query);
-        if (cancelled) return;
-        setOverview(resp);
-      } catch (e2) {
-        if (cancelled) return;
-        setError(errorMessage(e2));
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+  const refresh = useCallback(async (isBackground?: boolean) => {
+    if (isBackground) setRefreshing(true);
+    else setLoading(true);
+    setError(null);
+    try {
+      const resp = await getDashboardOverview(query);
+      setOverview(resp);
+    } catch (e2) {
+      setError(errorMessage(e2));
+    } finally {
+      if (isBackground) setRefreshing(false);
+      else setLoading(false);
     }
-    run();
-    return () => {
-      cancelled = true;
-    };
   }, [query]);
+
+  useEffect(() => {
+    refresh(false);
+    const id = setInterval(() => {
+      refresh(true);
+    }, 10_000);
+    return () => clearInterval(id);
+  }, [refresh]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -70,6 +82,16 @@ export default function DashboardOverviewPage() {
           <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
             Indicadores e faturamento do período.
           </p>
+          <div className="mt-3 flex items-center gap-2">
+            <button
+              className="inline-flex h-10 items-center justify-center rounded-lg border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-50 dark:hover:bg-zinc-900"
+              onClick={() => refresh(false)}
+              disabled={loading || refreshing}
+            >
+              {refreshing ? "Atualizando…" : "Atualizar"}
+            </button>
+            <div className="text-xs text-zinc-600 dark:text-zinc-400">Auto-atualiza a cada 10s</div>
+          </div>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
           <label className="flex flex-col gap-1">

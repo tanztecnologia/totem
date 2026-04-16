@@ -19,7 +19,6 @@ docker compose up -d
 ```
 
 URLs:
-- Jaeger UI: http://localhost:16686
 - Grafana: http://localhost:3000
 - Loki: http://localhost:3100
 - Prometheus: http://localhost:9090
@@ -36,16 +35,24 @@ Como a solução é white-label, a ideia é conseguir:
 ### Arquitetura (local via Docker Compose; equivalente em k8s)
 
 Stack definido em `compose.yaml`:
-- Jaeger (traces via OTLP gRPC)
+- Jaeger (collector OTLP)
 - Loki (logs, multi-tenant)
 - Fluent Bit (ingest de logs e envio ao Loki)
+- MySQL (banco de dados)
 - Prometheus (métricas do Loki e do TotemAPI)
 - Grafana (dashboards e exploração)
 
 Fluxos principais:
-- **Traces:** TotemAPI → OTLP → Jaeger
+- **Traces:** TotemAPI → OTLP → Jaeger → Grafana (Explore)
 - **Logs (stdout):** TotemAPI (stdout JSON) → Docker logging driver (fluentd) → Fluent Bit (forward) → Loki
 - **Métricas:** Prometheus faz scrape do TotemAPI (`/metrics`) e do Loki (`/metrics`)
+- **Dados:** TotemAPI → MySQL
+
+### Banco (MySQL)
+
+No `docker compose`, o TotemAPI usa MySQL (service `mysql`) via `ConnectionStrings__MySql`.
+
+Em ambiente local, quando a conexão MySQL está configurada, o TotemAPI cria as tabelas via `EnsureCreated()` e aplica um seed de dados da empresa TANZ (usuários, categorias, SKUs, estoque e SLA).
 
 ### Multi-tenancy no Loki (isolamento real)
 

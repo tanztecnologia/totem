@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { errorMessage } from "../../lib/api";
 import { formatDateTime, formatMoney, getDashboardOrders, type DashboardOrdersPage } from "../lib/dashboard";
 
 export default function DashboardOrdersPage() {
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState<DashboardOrdersPage | null>(null);
 
@@ -14,27 +15,28 @@ export default function DashboardOrdersPage() {
     return !!page?.nextCursorUpdatedAt && !!page?.nextCursorOrderId;
   }, [page]);
 
-  useEffect(() => {
-    let cancelled = false;
-    async function run() {
-      setLoading(true);
-      setError(null);
-      try {
-        const resp = await getDashboardOrders({ limit: 50 });
-        if (cancelled) return;
-        setPage(resp);
-      } catch (e2) {
-        if (cancelled) return;
-        setError(errorMessage(e2));
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+  const refresh = useCallback(async (isBackground?: boolean) => {
+    if (isBackground) setRefreshing(true);
+    else setLoading(true);
+    setError(null);
+    try {
+      const resp = await getDashboardOrders({ limit: 50 });
+      setPage(resp);
+    } catch (e2) {
+      setError(errorMessage(e2));
+    } finally {
+      if (isBackground) setRefreshing(false);
+      else setLoading(false);
     }
-    run();
-    return () => {
-      cancelled = true;
-    };
   }, []);
+
+  useEffect(() => {
+    refresh(false);
+    const id = setInterval(() => {
+      refresh(true);
+    }, 10_000);
+    return () => clearInterval(id);
+  }, [refresh]);
 
   async function loadMore() {
     if (!canLoadMore || loadingMore) return;
@@ -70,6 +72,16 @@ export default function DashboardOrdersPage() {
         <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
           Lista paginada por última atualização.
         </p>
+        <div className="mt-3 flex items-center gap-2">
+          <button
+            className="inline-flex h-10 items-center justify-center rounded-lg border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-50 dark:hover:bg-zinc-900"
+            onClick={() => refresh(false)}
+            disabled={loading || refreshing}
+          >
+            {refreshing ? "Atualizando…" : "Atualizar"}
+          </button>
+          <div className="text-xs text-zinc-600 dark:text-zinc-400">Auto-atualiza a cada 10s</div>
+        </div>
       </div>
 
       {error ? (

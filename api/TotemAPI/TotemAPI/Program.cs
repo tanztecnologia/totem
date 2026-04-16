@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.Options;
+using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
 using OpenTelemetry.Exporter;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
@@ -72,8 +73,18 @@ builder.Services.AddCors(options =>
     );
 });
 
+var mySql = builder.Configuration.GetConnectionString("MySql");
 var localDb = builder.Configuration.GetConnectionString("LocalDb") ?? "Data Source=totem.local.db";
-builder.Services.AddDbContext<TotemDbContext>(options => options.UseSqlite(localDb));
+builder.Services.AddDbContext<TotemDbContext>(options =>
+{
+    if (!string.IsNullOrWhiteSpace(mySql))
+    {
+        options.UseMySql(mySql, ServerVersion.AutoDetect(mySql));
+        return;
+    }
+
+    options.UseSqlite(localDb);
+});
 
 builder.Services.AddHttpClient();
 
@@ -217,7 +228,17 @@ if (app.Environment.IsDevelopment())
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<TotemDbContext>();
-    db.Database.Migrate();
+    var providerName = db.Database.ProviderName ?? string.Empty;
+    if (providerName.Contains("MySql", StringComparison.OrdinalIgnoreCase))
+    {
+        await db.Database.EnsureCreatedAsync();
+        var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
+        await TanzMySqlSeeder.SeedAsync(db, passwordHasher, CancellationToken.None);
+    }
+    else
+    {
+        db.Database.Migrate();
+    }
 }
 
 app.UseCors("DefaultCors");

@@ -197,6 +197,282 @@ public sealed class StockDeductionTests
     }
 
     [Fact]
+    public async Task ConfirmPayment_DecrementsStock_FromMultipleConsumptionItems()
+    {
+        var tenantId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+
+        var skus = new InMemorySkuRepository();
+        var carts = new InMemoryCartRepository();
+        var checkout = new InMemoryCheckoutRepository();
+        var tef = new ApprovedTefPaymentService();
+
+        var cheeseId = Guid.NewGuid();
+        var tomatoId = Guid.NewGuid();
+        var lettuceId = Guid.NewGuid();
+        var burgerId = Guid.NewGuid();
+
+        await skus.AddAsync(
+            new Sku(
+                Id: cheeseId,
+                TenantId: tenantId,
+                CategoryCode: "00005",
+                Code: "INS-QUEIJO",
+                Name: "Queijo (base)",
+                PriceCents: 0,
+                AveragePrepSeconds: null,
+                ImageUrl: null,
+                NfeCProd: null,
+                NfeCEan: null,
+                NfeCfop: null,
+                NfeUCom: null,
+                NfeQCom: null,
+                NfeVUnCom: null,
+                NfeVProd: null,
+                NfeCEanTrib: null,
+                NfeUTrib: null,
+                NfeQTrib: null,
+                NfeVUnTrib: null,
+                NfeIcmsOrig: null,
+                NfeIcmsCst: null,
+                NfeIcmsModBc: null,
+                NfeIcmsVBc: null,
+                NfeIcmsPIcms: null,
+                NfeIcmsVIcms: null,
+                NfePisCst: null,
+                NfePisVBc: null,
+                NfePisPPis: null,
+                NfePisVPis: null,
+                NfeCofinsCst: null,
+                NfeCofinsVBc: null,
+                NfeCofinsPCofins: null,
+                NfeCofinsVCofins: null,
+                TracksStock: true,
+                StockBaseUnit: StockBaseUnit.Gram,
+                StockOnHandBaseQty: 1000m,
+                IsActive: true,
+                CreatedAt: now,
+                UpdatedAt: now
+            ),
+            CancellationToken.None
+        );
+
+        await skus.AddAsync(
+            new Sku(
+                Id: tomatoId,
+                TenantId: tenantId,
+                CategoryCode: "00005",
+                Code: "INS-TOMATE",
+                Name: "Tomate (base)",
+                PriceCents: 0,
+                AveragePrepSeconds: null,
+                ImageUrl: null,
+                NfeCProd: null,
+                NfeCEan: null,
+                NfeCfop: null,
+                NfeUCom: null,
+                NfeQCom: null,
+                NfeVUnCom: null,
+                NfeVProd: null,
+                NfeCEanTrib: null,
+                NfeUTrib: null,
+                NfeQTrib: null,
+                NfeVUnTrib: null,
+                NfeIcmsOrig: null,
+                NfeIcmsCst: null,
+                NfeIcmsModBc: null,
+                NfeIcmsVBc: null,
+                NfeIcmsPIcms: null,
+                NfeIcmsVIcms: null,
+                NfePisCst: null,
+                NfePisVBc: null,
+                NfePisPPis: null,
+                NfePisVPis: null,
+                NfeCofinsCst: null,
+                NfeCofinsVBc: null,
+                NfeCofinsPCofins: null,
+                NfeCofinsVCofins: null,
+                TracksStock: true,
+                StockBaseUnit: StockBaseUnit.Gram,
+                StockOnHandBaseQty: 1000m,
+                IsActive: true,
+                CreatedAt: now,
+                UpdatedAt: now
+            ),
+            CancellationToken.None
+        );
+
+        await skus.AddAsync(
+            new Sku(
+                Id: lettuceId,
+                TenantId: tenantId,
+                CategoryCode: "00005",
+                Code: "INS-ALFACE",
+                Name: "Alface (base)",
+                PriceCents: 0,
+                AveragePrepSeconds: null,
+                ImageUrl: null,
+                NfeCProd: null,
+                NfeCEan: null,
+                NfeCfop: null,
+                NfeUCom: null,
+                NfeQCom: null,
+                NfeVUnCom: null,
+                NfeVProd: null,
+                NfeCEanTrib: null,
+                NfeUTrib: null,
+                NfeQTrib: null,
+                NfeVUnTrib: null,
+                NfeIcmsOrig: null,
+                NfeIcmsCst: null,
+                NfeIcmsModBc: null,
+                NfeIcmsVBc: null,
+                NfeIcmsPIcms: null,
+                NfeIcmsVIcms: null,
+                NfePisCst: null,
+                NfePisVBc: null,
+                NfePisPPis: null,
+                NfePisVPis: null,
+                NfeCofinsCst: null,
+                NfeCofinsVBc: null,
+                NfeCofinsPCofins: null,
+                NfeCofinsVCofins: null,
+                TracksStock: true,
+                StockBaseUnit: StockBaseUnit.Gram,
+                StockOnHandBaseQty: 1000m,
+                IsActive: true,
+                CreatedAt: now,
+                UpdatedAt: now
+            ),
+            CancellationToken.None
+        );
+
+        await skus.AddAsync(
+            new Sku(
+                Id: burgerId,
+                TenantId: tenantId,
+                CategoryCode: "00001",
+                Code: "X-BURGER",
+                Name: "X-Burger",
+                PriceCents: 2500,
+                AveragePrepSeconds: 480,
+                ImageUrl: null,
+                NfeCProd: null,
+                NfeCEan: null,
+                NfeCfop: null,
+                NfeUCom: null,
+                NfeQCom: null,
+                NfeVUnCom: null,
+                NfeVProd: null,
+                NfeCEanTrib: null,
+                NfeUTrib: null,
+                NfeQTrib: null,
+                NfeVUnTrib: null,
+                NfeIcmsOrig: null,
+                NfeIcmsCst: null,
+                NfeIcmsModBc: null,
+                NfeIcmsVBc: null,
+                NfeIcmsPIcms: null,
+                NfeIcmsVIcms: null,
+                NfePisCst: null,
+                NfePisVBc: null,
+                NfePisPPis: null,
+                NfePisVPis: null,
+                NfeCofinsCst: null,
+                NfeCofinsVBc: null,
+                NfeCofinsPCofins: null,
+                NfeCofinsVCofins: null,
+                TracksStock: false,
+                StockBaseUnit: null,
+                StockOnHandBaseQty: null,
+                IsActive: true,
+                CreatedAt: now,
+                UpdatedAt: now
+            ),
+            CancellationToken.None
+        );
+
+        await skus.ReplaceStockConsumptionsAsync(
+            tenantId,
+            burgerId,
+            new List<SkuStockConsumption>
+            {
+                new(Id: Guid.NewGuid(), TenantId: tenantId, SkuId: burgerId, SourceSkuId: cheeseId, QuantityBase: 10m),
+                new(Id: Guid.NewGuid(), TenantId: tenantId, SkuId: burgerId, SourceSkuId: tomatoId, QuantityBase: 10m),
+                new(Id: Guid.NewGuid(), TenantId: tenantId, SkuId: burgerId, SourceSkuId: lettuceId, QuantityBase: 10m),
+            }.AsReadOnly(),
+            CancellationToken.None
+        );
+
+        var orderId = Guid.NewGuid();
+        var paymentId = Guid.NewGuid();
+        var order = new Order(
+            Id: orderId,
+            TenantId: tenantId,
+            CartId: null,
+            Fulfillment: OrderFulfillment.TakeAway,
+            TotalCents: 5000,
+            Status: OrderStatus.Created,
+            KitchenStatus: OrderKitchenStatus.PendingPayment,
+            Comanda: null,
+            CreatedAt: now,
+            UpdatedAt: now,
+            QueuedAt: null,
+            InPreparationAt: null,
+            ReadyAt: null,
+            CompletedAt: null,
+            CancelledAt: null
+        );
+
+        var items = new List<OrderItem>
+        {
+            new(
+                Id: Guid.NewGuid(),
+                TenantId: tenantId,
+                OrderId: orderId,
+                SkuId: burgerId,
+                SkuCode: "X-BURGER",
+                SkuName: "X-Burger",
+                UnitPriceCents: 2500,
+                Quantity: 2,
+                TotalCents: 5000,
+                CreatedAt: now
+            )
+        }.AsReadOnly();
+
+        var payment = new Payment(
+            Id: paymentId,
+            TenantId: tenantId,
+            OrderId: orderId,
+            Method: PaymentMethod.CreditCard,
+            Status: PaymentStatus.Pending,
+            AmountCents: 5000,
+            Provider: "TEF",
+            ProviderReference: "ref",
+            TransactionId: "tx",
+            PixPayload: null,
+            PixExpiresAt: null,
+            CreatedAt: now,
+            UpdatedAt: now
+        );
+
+        await checkout.CreateAsync(order, items, payment, CancellationToken.None);
+
+        var useCase = new ConfirmPayment(checkout, tef, carts, skus, NullLogger<ConfirmPayment>.Instance);
+        await useCase.HandleAsync(new ConfirmPaymentCommand(tenantId, paymentId), CancellationToken.None);
+
+        Assert.Equal(980m, (await skus.GetByIdAsync(tenantId, cheeseId, CancellationToken.None))!.StockOnHandBaseQty);
+        Assert.Equal(980m, (await skus.GetByIdAsync(tenantId, tomatoId, CancellationToken.None))!.StockOnHandBaseQty);
+        Assert.Equal(980m, (await skus.GetByIdAsync(tenantId, lettuceId, CancellationToken.None))!.StockOnHandBaseQty);
+
+        var cheeseLedger = await skus.ListStockLedgerAsync(tenantId, cheeseId, 10, null, null, CancellationToken.None);
+        Assert.Single(cheeseLedger);
+        Assert.Equal(StockLedgerOriginType.OrderPayment, cheeseLedger[0].OriginType);
+        Assert.Equal(orderId, cheeseLedger[0].OriginId);
+        Assert.Equal(-20m, cheeseLedger[0].DeltaBaseQty);
+    }
+
+    [Fact]
     public async Task ConfirmPayment_CreatesLedgerEntry_WithOrderPaymentOrigin()
     {
         var tenantId = Guid.NewGuid();

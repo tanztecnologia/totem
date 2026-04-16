@@ -21,12 +21,7 @@ public sealed class EfDashboardRepository : IDashboardRepository
     )
     {
         var orders = await _db.Orders
-            .FromSqlRaw(
-                "SELECT * FROM orders WHERE TenantId = {0} AND CreatedAt >= {1} AND CreatedAt <= {2}",
-                tenantId,
-                fromInclusive,
-                toInclusive
-            )
+            .Where(x => x.TenantId == tenantId && x.CreatedAt >= fromInclusive && x.CreatedAt <= toInclusive)
             .AsNoTracking()
             .ToListAsync(ct);
 
@@ -41,12 +36,12 @@ public sealed class EfDashboardRepository : IDashboardRepository
             .AsReadOnly();
 
         var payments = await _db.Payments
-            .FromSqlRaw(
-                "SELECT * FROM payments WHERE TenantId = {0} AND Status = {1} AND UpdatedAt >= {2} AND UpdatedAt <= {3}",
-                tenantId,
-                PaymentStatus.Approved,
-                fromInclusive,
-                toInclusive
+            .Where(
+                x =>
+                    x.TenantId == tenantId
+                    && x.Status == PaymentStatus.Approved
+                    && x.UpdatedAt >= fromInclusive
+                    && x.UpdatedAt <= toInclusive
             )
             .AsNoTracking()
             .ToListAsync(ct);

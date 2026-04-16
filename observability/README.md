@@ -1,7 +1,7 @@
 # Observability (Docker Compose)
 
 Este stack sobe:
-- Jaeger (OTLP gRPC :4317, UI :16686)
+- Jaeger (collector OTLP gRPC :4317)
 - Prometheus (:9090)
 - Loki (:3100)
 - Fluent Bit (tail de `./logs/totemapi.jsonl` → Loki)
@@ -22,7 +22,6 @@ docker compose down
 
 ## URLs
 
-- Jaeger UI: http://localhost:16686
 - Grafana: http://localhost:3000
 - Loki: http://localhost:3100
 - Prometheus: http://localhost:9090

@@ -4,7 +4,6 @@ services:
     environment:
       COLLECTOR_OTLP_ENABLED: "true"
     ports:
-      - "16686:16686"
       - "4317:4317"
     restart: unless-stopped
 
@@ -49,6 +48,24 @@ services:
       - ./observability/grafana/dashboards/totem:/etc/grafana/provisioning/dashboards/totem:ro
     restart: unless-stopped
 
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: totem
+      MYSQL_USER: totem
+      MYSQL_PASSWORD: totem
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./data/mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -proot --silent"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
   totemapi:
     build:
       context: ./api/TotemAPI
@@ -59,19 +76,20 @@ services:
       ASPNETCORE_URLS: http://0.0.0.0:8080
       ASPNETCORE_ENVIRONMENT: Development
       Otel__Endpoint: http://jaeger:4317
-      ConnectionStrings__LocalDb: Data Source=/data/totem.local.db
+      ConnectionStrings__MySql: Server=mysql;Port=3306;Database=totem;User=totem;Password=totem;
       Jwt__Issuer: TotemAPI
       Jwt__Audience: TotemClients
       Jwt__Key: super-secret-development-key-change-me
     ports:
       - "5120:8080"
-    volumes:
-      - ./data:/data
     depends_on:
       jaeger:
         condition: service_started
         required: true
       fluent-bit:
+        condition: service_healthy
+        required: true
+      mysql:
         condition: service_healthy
         required: true
     logging:
@@ -89,3 +107,24 @@ services:
     volumes:
       - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     restart: unless-stopped
+
+  admin-web:
+    image: node:22-alpine
+    working_dir: /app
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:5120
+      NEXT_TELEMETRY_DISABLED: "1"
+    command: sh -c "npm ci && npm run dev -- --hostname 0.0.0.0 --port 3001"
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./admin-web:/app
+      - admin_web_node_modules:/app/node_modules
+    depends_on:
+      totemapi:
+        condition: service_started
+        required: true
+    restart: unless-stopped
+
+volumes:
+  admin_web_node_modules:
