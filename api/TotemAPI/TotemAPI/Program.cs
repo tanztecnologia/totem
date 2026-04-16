@@ -6,6 +6,10 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.Options;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
+using TotemAPI.Infrastructure.Logging;
+using TotemAPI.Infrastructure.Telemetry;
 using TotemAPI.Features.Cart.Application.Abstractions;
 using TotemAPI.Features.Cart.Application.UseCases;
 using TotemAPI.Features.Catalog.Application.Abstractions;
@@ -151,6 +155,35 @@ builder.Services
     });
 
 builder.Services.AddAuthorization();
+
+builder.Services.AddOpenTelemetry()
+    .ConfigureResource(r => r
+        .AddService(
+            serviceName: TotemActivitySource.ServiceName,
+            serviceVersion: TotemActivitySource.ServiceVersion)
+        .AddAttributes(new Dictionary<string, object>
+        {
+            ["deployment.environment"] = builder.Environment.EnvironmentName.ToLowerInvariant(),
+        }))
+    .WithTracing(tracing =>
+    {
+        tracing
+            .AddSource(TotemActivitySource.ServiceName)
+            .AddAspNetCoreInstrumentation(o => o.RecordException = true)
+            .AddHttpClientInstrumentation()
+            .AddEntityFrameworkCoreInstrumentation(o => o.SetDbStatementForText = true);
+
+        var otlpEndpoint = builder.Configuration["Otel:Endpoint"];
+        if (!string.IsNullOrWhiteSpace(otlpEndpoint))
+        {
+            tracing.AddOtlpExporter(o => o.Endpoint = new Uri(otlpEndpoint));
+        }
+
+        if (builder.Environment.IsDevelopment())
+        {
+            tracing.AddConsoleExporter();
+        }
+    });
 
 var app = builder.Build();
 
@@ -315,10 +348,11 @@ app.Use(
 
             var tenantId = context.User.FindFirstValue("tenant_id") ?? "-";
             var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? context.User.FindFirstValue("sub") ?? "-";
-            var email = context.User.FindFirstValue(ClaimTypes.Email) ?? context.User.FindFirstValue("email") ?? "-";
+            var rawEmail = context.User.FindFirstValue(ClaimTypes.Email) ?? context.User.FindFirstValue("email");
+            var maskedEmail = rawEmail is null ? "-" : PiiMasker.MaskEmail(rawEmail);
 
             app.Logger.LogInformation(
-                "HTTP {Method} {Path}{Query} => {StatusCode} in {ElapsedMs}ms tenant={TenantId} userId={UserId} email={Email}",
+                "HTTP {Method} {Path}{Query} => {StatusCode} in {ElapsedMs}ms tenant={TenantId} userId={UserId} email={MaskedEmail}",
                 context.Request.Method,
                 context.Request.Path,
                 context.Request.QueryString,
@@ -326,7 +360,7 @@ app.Use(
                 sw.ElapsedMilliseconds,
                 tenantId,
                 userId,
-                email
+                maskedEmail
             );
         }
         catch (Exception ex)

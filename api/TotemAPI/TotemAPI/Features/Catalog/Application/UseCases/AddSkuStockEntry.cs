@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using TotemAPI.Features.Catalog.Application.Abstractions;
 using TotemAPI.Features.Catalog.Domain;
 
@@ -14,12 +15,14 @@ public sealed record AddSkuStockEntryCommand(
 
 public sealed class AddSkuStockEntry
 {
-    public AddSkuStockEntry(ISkuRepository skus)
+    public AddSkuStockEntry(ISkuRepository skus, ILogger<AddSkuStockEntry> logger)
     {
         _skus = skus;
+        _logger = logger;
     }
 
     private readonly ISkuRepository _skus;
+    private readonly ILogger<AddSkuStockEntry> _logger;
 
     public async Task<SkuResult?> HandleAsync(AddSkuStockEntryCommand command, CancellationToken ct)
     {
@@ -51,6 +54,13 @@ public sealed class AddSkuStockEntry
         }
 
         var delta = ConvertToBase(command.Quantity, command.Unit, baseUnit);
+
+        _logger.LogInformation(
+            "stock.entry.manual tenantId={TenantId} skuId={SkuId} skuCode={SkuCode} " +
+            "deltaQty={Delta} unit={Unit} baseUnit={BaseUnit} actorUserId={ActorUserId}",
+            command.TenantId, command.SkuId, sku.Code,
+            delta, command.Unit, baseUnit, command.ActorUserId?.ToString() ?? "-");
+
         await _skus.AddStockLedgerEntryAsync(new SkuStockLedgerEntry(
             Id: Guid.NewGuid(),
             TenantId: command.TenantId,

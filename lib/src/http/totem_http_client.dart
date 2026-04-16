@@ -4,6 +4,8 @@ import 'dart:developer' as developer;
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
+import '../telemetry/otel_dio_interceptor.dart';
+import '../telemetry/totem_telemetry.dart';
 import 'totem_http_exception.dart';
 
 typedef TotemTokenProvider = FutureOr<String?> Function();
@@ -31,6 +33,13 @@ class TotemHttpClient {
         responseType: ResponseType.json,
       ),
     );
+
+    // Adiciona interceptor OTel antes do de logging, para que o traceparent
+    // apareça nos logs e os spans HTTP sejam criados primeiro.
+    final otelTracer = TotemTelemetry.tracer;
+    if (otelTracer != null) {
+      dio.interceptors.add(OtelDioInterceptor(otelTracer));
+    }
 
     const maxBodyChars = 4000;
 

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging.Abstractions;
 using TotemAPI.Features.Cart.Infrastructure;
 using TotemAPI.Features.Catalog.Application.UseCases;
 using TotemAPI.Features.Catalog.Domain;
@@ -186,7 +187,7 @@ public sealed class StockDeductionTests
 
         await checkout.CreateAsync(order, items, payment, CancellationToken.None);
 
-        var useCase = new ConfirmPayment(checkout, tef, carts, skus);
+        var useCase = new ConfirmPayment(checkout, tef, carts, skus, NullLogger<ConfirmPayment>.Instance);
         var result = await useCase.HandleAsync(new ConfirmPaymentCommand(tenantId, paymentId), CancellationToken.None);
 
         Assert.NotNull(result);
@@ -272,7 +273,7 @@ public sealed class StockDeductionTests
 
         await checkout.CreateAsync(order, items, payment, CancellationToken.None);
 
-        var useCase = new ConfirmPayment(checkout, tef, carts, skus);
+        var useCase = new ConfirmPayment(checkout, tef, carts, skus, NullLogger<ConfirmPayment>.Instance);
         await useCase.HandleAsync(new ConfirmPaymentCommand(tenantId, paymentId), CancellationToken.None);
 
         // Verifica que o ledger foi gerado com a origem correta
@@ -310,7 +311,7 @@ public sealed class StockDeductionTests
             CancellationToken.None
         );
 
-        var useCase = new AddSkuStockEntry(skus);
+        var useCase = new AddSkuStockEntry(skus, NullLogger<AddSkuStockEntry>.Instance);
         await useCase.HandleAsync(
             new AddSkuStockEntryCommand(tenantId, batataId, 2, "kg", userId, "Reposição de estoque"),
             CancellationToken.None

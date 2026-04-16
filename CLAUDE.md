@@ -8,7 +8,7 @@
 - Arquitetura no Flutter: Clean Architecture + feature-first em `lib/src/features/<feature>/`.
 - UI reutilizável deve ficar em `packages/totem_ds` e ser consumida pelo app.
 - Não criar widgets compartilháveis dentro de features; use o DS.
-- Sempre que mudar endpoints/contratos, atualizar `postman/TotemAPI.postman_collection.json`.
+- Sempre que criar ou alterar qualquer endpoint, contrato, request/response body, autenticação ou parâmetro na API (.NET), atualizar obrigatoriamente `postman/TotemAPI.postman_collection.json` — isso inclui novos controllers, rotas, DTOs e mudanças de status code.
 - Evitar o nome `Category` para entidades (conflito com `@Category` do Flutter); usar `KioskCategory`.
 
 ## Comandos de Verificação (obrigatórios antes de finalizar)

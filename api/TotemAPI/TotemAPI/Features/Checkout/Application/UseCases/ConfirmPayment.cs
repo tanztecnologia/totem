@@ -1,8 +1,12 @@
+using System.Diagnostics;
+using Microsoft.Extensions.Logging;
 using TotemAPI.Features.Checkout.Application.Abstractions;
 using TotemAPI.Features.Checkout.Domain;
 using TotemAPI.Features.Cart.Application.Abstractions;
 using TotemAPI.Features.Catalog.Application.Abstractions;
 using TotemAPI.Features.Catalog.Domain;
+using TotemAPI.Infrastructure.Logging;
+using TotemAPI.Infrastructure.Telemetry;
 
 namespace TotemAPI.Features.Checkout.Application.UseCases;
 
@@ -23,21 +27,48 @@ public sealed class ConfirmPayment
         ICheckoutRepository checkout,
         ITefPaymentService tef,
         ICartRepository carts,
-        ISkuRepository skus
+        ISkuRepository skus,
+        ILogger<ConfirmPayment> logger
     )
     {
         _checkout = checkout;
         _tef = tef;
         _carts = carts;
         _skus = skus;
+        _logger = logger;
     }
 
     private readonly ICheckoutRepository _checkout;
     private readonly ITefPaymentService _tef;
     private readonly ICartRepository _carts;
     private readonly ISkuRepository _skus;
+    private readonly ILogger<ConfirmPayment> _logger;
 
     public async Task<ConfirmPaymentResult?> HandleAsync(ConfirmPaymentCommand command, CancellationToken ct)
+    {
+        using var activity = TotemActivitySource.Instance.StartActivity("checkout.confirm_payment");
+        activity?.SetTag("tenant.id", command.TenantId.ToString());
+        activity?.SetTag("payment.id", command.PaymentId.ToString());
+
+        try
+        {
+            var result = await ExecuteAsync(command, activity, ct);
+            return result;
+        }
+        catch (Exception ex)
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+            activity?.AddEvent(new ActivityEvent("exception", tags: new ActivityTagsCollection
+            {
+                { "exception.type", ex.GetType().FullName ?? string.Empty },
+                { "exception.message", ex.Message },
+                { "exception.stacktrace", ex.StackTrace ?? string.Empty },
+            }));
+            throw;
+        }
+    }
+
+    private async Task<ConfirmPaymentResult?> ExecuteAsync(ConfirmPaymentCommand command, Activity? activity, CancellationToken ct)
     {
         if (command.TenantId == Guid.Empty) throw new ArgumentException("TenantId inválido.");
         if (command.PaymentId == Guid.Empty) throw new ArgumentException("PaymentId inválido.");
@@ -110,6 +141,33 @@ public sealed class ConfirmPayment
             await _carts.TouchAsync(command.TenantId, newOrder.CartId.Value, DateTimeOffset.UtcNow, ct);
         }
 
+        activity?.SetTag("payment.status", newPayment.Status.ToString());
+        activity?.SetTag("payment.is_approved", confirmation.IsApproved.ToString());
+        activity?.SetTag("order.id", newOrder.Id.ToString());
+        activity?.SetTag("order.status", newOrder.Status.ToString());
+        if (!string.IsNullOrWhiteSpace(confirmation.TransactionId))
+            activity?.SetTag("payment.transaction_id", confirmation.TransactionId);
+
+        // TransactionId não é dado pessoal, mas mascara parcialmente por precaução financeira
+        var maskedTxId = PiiMasker.MaskTransactionId(newPayment.TransactionId);
+
+        if (confirmation.IsApproved)
+        {
+            _logger.LogInformation(
+                "checkout.payment.approved tenantId={TenantId} orderId={OrderId} paymentId={PaymentId} " +
+                "method={Method} amountCents={AmountCents} transactionId={TransactionId}",
+                command.TenantId, newOrder.Id, newPayment.Id,
+                newPayment.Method, newPayment.AmountCents, maskedTxId);
+        }
+        else
+        {
+            _logger.LogWarning(
+                "checkout.payment.declined tenantId={TenantId} orderId={OrderId} paymentId={PaymentId} " +
+                "method={Method} amountCents={AmountCents}",
+                command.TenantId, newOrder.Id, newPayment.Id,
+                newPayment.Method, newPayment.AmountCents);
+        }
+
         return new ConfirmPaymentResult(
             OrderId: newOrder.Id,
             OrderStatus: newOrder.Status,
@@ -164,6 +222,10 @@ public sealed class ConfirmPayment
         var now = DateTimeOffset.UtcNow;
         foreach (var kv in deltas)
         {
+            _logger.LogInformation(
+                "stock.deduction.order tenantId={TenantId} orderId={OrderId} skuId={SkuId} deltaQty={Delta}",
+                tenantId, orderId, kv.Key, kv.Value);
+
             await _skus.AddStockLedgerEntryAsync(new SkuStockLedgerEntry(
                 Id: Guid.NewGuid(),
                 TenantId: tenantId,

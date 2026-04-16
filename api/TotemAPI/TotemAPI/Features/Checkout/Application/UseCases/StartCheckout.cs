@@ -1,7 +1,11 @@
+using System.Diagnostics;
+using Microsoft.Extensions.Logging;
 using TotemAPI.Features.Catalog.Application.Abstractions;
 using TotemAPI.Features.Cart.Application.Abstractions;
 using TotemAPI.Features.Checkout.Application.Abstractions;
 using TotemAPI.Features.Checkout.Domain;
+using TotemAPI.Infrastructure.Logging;
+using TotemAPI.Infrastructure.Telemetry;
 
 namespace TotemAPI.Features.Checkout.Application.UseCases;
 
@@ -49,24 +53,55 @@ public sealed class StartCheckout
         ISkuRepository skus,
         ICheckoutRepository checkout,
         ITefPaymentService tef,
-        ICartRepository carts
+        ICartRepository carts,
+        ILogger<StartCheckout> logger
     )
     {
         _skus = skus;
         _checkout = checkout;
         _tef = tef;
         _carts = carts;
+        _logger = logger;
     }
 
     private readonly ISkuRepository _skus;
     private readonly ICheckoutRepository _checkout;
     private readonly ITefPaymentService _tef;
     private readonly ICartRepository _carts;
+    private readonly ILogger<StartCheckout> _logger;
 
     public async Task<StartCheckoutResult> HandleAsync(StartCheckoutCommand command, CancellationToken ct)
     {
+        using var activity = TotemActivitySource.Instance.StartActivity("checkout.start");
+        activity?.SetTag("tenant.id", command.TenantId.ToString());
+        activity?.SetTag("order.payment_method", command.PaymentMethod.ToString());
+        activity?.SetTag("order.fulfillment", command.Fulfillment.ToString());
+
+        try
+        {
+            return await ExecuteAsync(command, activity, ct);
+        }
+        catch (Exception ex)
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+            activity?.AddEvent(new ActivityEvent("exception", tags: new ActivityTagsCollection
+            {
+                { "exception.type", ex.GetType().FullName ?? string.Empty },
+                { "exception.message", ex.Message },
+                { "exception.stacktrace", ex.StackTrace ?? string.Empty },
+            }));
+            throw;
+        }
+    }
+
+    private async Task<StartCheckoutResult> ExecuteAsync(StartCheckoutCommand command, Activity? activity, CancellationToken ct)
+    {
         if (command.TenantId == Guid.Empty) throw new ArgumentException("TenantId inválido.");
         if (command.CartId == Guid.Empty) throw new ArgumentException("CartId inválido.");
+
+        _logger.LogInformation(
+            "checkout.start.attempt tenantId={TenantId} cartId={CartId} method={Method} fulfillment={Fulfillment}",
+            command.TenantId, command.CartId, command.PaymentMethod, command.Fulfillment);
 
         var cart = await _carts.GetAsync(command.TenantId, command.CartId, ct);
         if (cart is null) throw new InvalidOperationException("Carrinho não encontrado.");
@@ -195,6 +230,17 @@ public sealed class StartCheckout
         );
 
         await _checkout.CreateAsync(order, items, payment, ct);
+
+        activity?.SetTag("order.id", orderId.ToString());
+        activity?.SetTag("order.total_cents", totalCents);
+        activity?.SetTag("order.item_count", itemResults.Count);
+        activity?.SetTag("order.payment_id", paymentId.ToString());
+
+        _logger.LogInformation(
+            "checkout.start.success tenantId={TenantId} orderId={OrderId} paymentId={PaymentId} " +
+            "totalCents={TotalCents} itemCount={ItemCount} method={Method} fulfillment={Fulfillment}",
+            command.TenantId, orderId, paymentId,
+            totalCents, itemResults.Count, command.PaymentMethod, command.Fulfillment);
 
         return new StartCheckoutResult(
             OrderId: order.Id,

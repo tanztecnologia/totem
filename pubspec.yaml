@@ -40,6 +40,7 @@ dependencies:
     path: packages/totem_ds
   flutter_dotenv: ^6.0.0
   dio: ^5.9.2
+  opentelemetry: ^0.18.11
 
 dev_dependencies:
   flutter_test:

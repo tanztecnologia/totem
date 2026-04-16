@@ -4,6 +4,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:totem_ds/totem_ds.dart';
 
+import 'src/telemetry/otel_bloc_observer.dart';
+import 'src/telemetry/totem_telemetry.dart';
+
 import 'src/features/checkout/data/services/fake_checkout_service.dart';
 import 'src/features/checkout/data/services/totem_api_checkout_service.dart';
 import 'src/features/checkout/domain/services/checkout_service.dart';
@@ -36,6 +39,21 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
   await dotenv.load(fileName: '.env');
+
+  // Inicializa OpenTelemetry.
+  // Configure OTEL_EXPORTER_OTLP_ENDPOINT no .env ou via --dart-define
+  // para exportar traces para um coletor (ex: Jaeger, Grafana Tempo, OTEL Collector).
+  final env = dotenv.isInitialized ? dotenv.env : const <String, String>{};
+  final otlpEndpoint =
+      env['OTEL_EXPORTER_OTLP_ENDPOINT'] ??
+      const String.fromEnvironment('OTEL_EXPORTER_OTLP_ENDPOINT');
+  await TotemTelemetry.init(otlpEndpoint: otlpEndpoint.isEmpty ? null : otlpEndpoint);
+
+  final otelTracer = TotemTelemetry.tracer;
+  if (otelTracer != null) {
+    Bloc.observer = OtelBlocObserver(otelTracer);
+  }
+
   runApp(const TotemApp());
 }
 

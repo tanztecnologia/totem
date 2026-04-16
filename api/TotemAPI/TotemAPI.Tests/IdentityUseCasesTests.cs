@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using TotemAPI.Features.Identity.Application.UseCases;
 using TotemAPI.Features.Identity.Domain;
@@ -25,8 +26,8 @@ public sealed class IdentityUseCasesTests
             )
         );
 
-        var register = new RegisterUser(tenants, users, hasher, jwt);
-        var login = new LoginUser(tenants, users, hasher, jwt);
+        var register = new RegisterUser(tenants, users, hasher, jwt, NullLogger<RegisterUser>.Instance);
+        var login = new LoginUser(tenants, users, hasher, jwt, NullLogger<LoginUser>.Instance);
 
         var reg = await register.HandleAsync(
             new RegisterUserCommand("Restaurante A", "admin@a.com", "123456"),
@@ -65,7 +66,7 @@ public sealed class IdentityUseCasesTests
             )
         );
 
-        var register = new RegisterUser(tenants, users, hasher, jwt);
+        var register = new RegisterUser(tenants, users, hasher, jwt, NullLogger<RegisterUser>.Instance);
 
         await register.HandleAsync(
             new RegisterUserCommand("Restaurante A", "admin@a.com", "123456"),
@@ -98,8 +99,8 @@ public sealed class IdentityUseCasesTests
             )
         );
 
-        var register = new RegisterUser(tenants, users, hasher, jwt);
-        var login = new LoginUser(tenants, users, hasher, jwt);
+        var register = new RegisterUser(tenants, users, hasher, jwt, NullLogger<RegisterUser>.Instance);
+        var login = new LoginUser(tenants, users, hasher, jwt, NullLogger<LoginUser>.Instance);
 
         await register.HandleAsync(
             new RegisterUserCommand("Restaurante A", "admin@a.com", "123456"),
@@ -132,7 +133,7 @@ public sealed class IdentityUseCasesTests
             )
         );
 
-        var register = new RegisterUser(tenants, users, hasher, jwt);
+        var register = new RegisterUser(tenants, users, hasher, jwt, NullLogger<RegisterUser>.Instance);
         var createUser = new CreateUser(users, hasher);
 
         var reg = await register.HandleAsync(
@@ -172,7 +173,7 @@ public sealed class IdentityUseCasesTests
             )
         );
 
-        var register = new RegisterUser(tenants, users, hasher, jwt);
+        var register = new RegisterUser(tenants, users, hasher, jwt, NullLogger<RegisterUser>.Instance);
         var createUser = new CreateUser(users, hasher);
 
         var reg = await register.HandleAsync(
@@ -212,7 +213,7 @@ public sealed class IdentityUseCasesTests
             )
         );
 
-        var register = new RegisterUser(tenants, users, hasher, jwt);
+        var register = new RegisterUser(tenants, users, hasher, jwt, NullLogger<RegisterUser>.Instance);
         var createUser = new CreateUser(users, hasher);
 
         var reg = await register.HandleAsync(
