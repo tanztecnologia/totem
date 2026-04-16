@@ -1,4 +1,4 @@
-import { apiFetch } from "../../lib/api";
+import { apiFetch, apiFetchFormData, apiFetchVoid } from "../../lib/api";
 
 export type StockBaseUnit = "Unit" | "Gram" | "Milliliter";
 
@@ -40,6 +40,12 @@ export type SkuStockConsumption = {
   quantityBase: number;
 };
 
+export type SkuImageResult = {
+  id: string;
+  url: string;
+  createdAt: string;
+};
+
 export async function getSkuByCode(code: string) {
   const q = new URLSearchParams({ code });
   return apiFetch<SkuResult>(`/api/skus/by-code?${q.toString()}`);
@@ -64,6 +70,20 @@ export async function replaceSkuStockConsumptions(params: {
     method: "PUT",
     body: JSON.stringify({ items: params.items }),
   });
+}
+
+export async function listSkuImages(skuId: string) {
+  return apiFetch<SkuImageResult[]>(`/api/skus/${skuId}/images`);
+}
+
+export async function uploadSkuImage(params: { skuId: string; file: File }) {
+  const fd = new FormData();
+  fd.append("file", params.file);
+  return apiFetchFormData<SkuImageResult>(`/api/skus/${params.skuId}/images`, fd);
+}
+
+export async function deleteSkuImage(params: { skuId: string; imageId: string }) {
+  return apiFetchVoid(`/api/skus/${params.skuId}/images/${params.imageId}`, { method: "DELETE" });
 }
 
 export async function searchSkus(params: {

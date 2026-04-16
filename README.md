@@ -128,3 +128,17 @@ Porta:
 Bootstrap automático:
 - `observability/localstack/init/01-bootstrap.sh`
 - Cria: bucket `totem-local-bucket`, fila `totem-events-queue`, tópico `totem-events-topic` e tenta criar uma instância RDS de teste.
+
+## Fotos de SKU (S3)
+
+O TotemAPI suporta até **3 fotos por SKU** com upload no bucket S3 configurado.
+
+Regras:
+- Isolamento por tenant: chave S3 no padrão `tenants/{tenantId}/skus/{skuId}/{arquivo}`
+- Limite de 3 fotos por SKU
+- Operações respeitam `tenant_id` do JWT
+
+Endpoints:
+- `GET /api/skus/{skuId}/images`
+- `POST /api/skus/{skuId}/images` (`multipart/form-data`, campo `file`)
+- `DELETE /api/skus/{skuId}/images/{imageId}`

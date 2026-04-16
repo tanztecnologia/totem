@@ -60,6 +60,20 @@ public sealed class S3SkuImageStorage : ISkuImageStorage
         }, ct);
     }
 
+    public async Task<bool> ExistsAsync(string key, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(key)) return false;
+        try
+        {
+            await _s3.GetObjectMetadataAsync(_options.Bucket, key, ct);
+            return true;
+        }
+        catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return false;
+        }
+    }
+
     private static string GetExtension(string fileName, string contentType)
     {
         var ext = Path.GetExtension(fileName ?? string.Empty)?.Trim().ToLowerInvariant();
@@ -75,4 +89,3 @@ public sealed class S3SkuImageStorage : ISkuImageStorage
         };
     }
 }
-

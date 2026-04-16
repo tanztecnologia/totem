@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "../../../components/page_header";
 import { Card } from "../../../components/card";
 import { Modal } from "../../../components/modal";
@@ -9,10 +9,14 @@ import { formatMoney } from "../../lib/dashboard";
 import {
   createSku,
   listCategories,
+  listSkuImages,
+  uploadSkuImage,
+  deleteSkuImage,
   updateSku,
   type CategoryResult,
   type StockBaseUnit,
   searchSkus,
+  type SkuImageResult,
   type SkuResult,
   type SkuSearchPage,
 } from "../../lib/catalog";
@@ -48,9 +52,32 @@ export default function AdminSkusPage() {
   const [stockOnHand, setStockOnHand] = useState("0");
   const [savingStock, setSavingStock] = useState(false);
 
+  const [imagesOpen, setImagesOpen] = useState(false);
+  const [imagesSku, setImagesSku] = useState<SkuResult | null>(null);
+  const [images, setImages] = useState<SkuImageResult[]>([]);
+  const [loadingImages, setLoadingImages] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [deletingImageId, setDeletingImageId] = useState<string | null>(null);
+
   const canLoadMore = useMemo(() => {
     return !!page?.nextCursorCode && !!page?.nextCursorId;
   }, [page]);
+
+  const refreshImages = useCallback(
+    async (skuId: string) => {
+      setLoadingImages(true);
+      setError(null);
+      try {
+        const resp = await listSkuImages(skuId);
+        setImages(resp);
+      } catch (e) {
+        setError(errorMessage(e));
+      } finally {
+        setLoadingImages(false);
+      }
+    },
+    [],
+  );
 
   async function loadFirst() {
     setLoading(true);
@@ -192,6 +219,15 @@ export default function AdminSkusPage() {
               setStockOnHand(String(sku.stockOnHandBaseQty ?? 0));
               setStockOpen(true);
             }}
+          onManageImages={(sku) => {
+            if (!canWrite) {
+              setError("Sem permissão para gerenciar fotos (catalog:write).");
+              return;
+            }
+            setImagesSku(sku);
+            setImagesOpen(true);
+            refreshImages(sku.id).catch(() => {});
+          }}
           />
         ) : null}
         <div className="mt-4 flex justify-end">
@@ -473,20 +509,128 @@ export default function AdminSkusPage() {
           </div>
         ) : null}
       </Modal>
+
+      <Modal
+        open={imagesOpen}
+        title="Fotos do SKU"
+        onClose={() => setImagesOpen(false)}
+        footer={
+          <>
+            <button
+              className="inline-flex h-10 items-center justify-center rounded-lg border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-900 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-50 dark:hover:bg-zinc-900"
+              onClick={() => setImagesOpen(false)}
+              disabled={uploadingImage || !!deletingImageId}
+            >
+              Fechar
+            </button>
+          </>
+        }
+      >
+        {imagesSku ? (
+          <div className="flex flex-col gap-4">
+            <div className="text-sm text-zinc-600 dark:text-zinc-400">
+              SKU: <span className="font-semibold text-zinc-900 dark:text-zinc-50">{imagesSku.code}</span> —{" "}
+              {imagesSku.name}
+            </div>
+
+            <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900">
+              <div className="text-sm font-semibold text-zinc-950 dark:text-zinc-50">Upload</div>
+              <div className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                Máximo de 3 fotos por SKU. Formatos comuns: JPG/PNG/WebP.
+              </div>
+              <div className="mt-3 flex flex-col gap-2">
+                <input
+                  type="file"
+                  accept="image/*"
+                  disabled={uploadingImage || loadingImages || images.length >= 3}
+                  onChange={async (e) => {
+                    const f = e.target.files?.[0];
+                    e.target.value = "";
+                    if (!f) return;
+                    if (!imagesSku) return;
+                    if (images.length >= 3) {
+                      setError("Este SKU já atingiu o limite de 3 fotos.");
+                      return;
+                    }
+                    setUploadingImage(true);
+                    setError(null);
+                    try {
+                      const created = await uploadSkuImage({ skuId: imagesSku.id, file: f });
+                      setImages((prev) => [...prev, created]);
+                    } catch (e2) {
+                      setError(errorMessage(e2));
+                    } finally {
+                      setUploadingImage(false);
+                    }
+                  }}
+                />
+                <div className="text-xs text-zinc-600 dark:text-zinc-400">
+                  {images.length}/3 fotos cadastradas
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
+              <div className="text-sm font-semibold text-zinc-950 dark:text-zinc-50">Galeria</div>
+              {loadingImages ? (
+                <div className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">Carregando…</div>
+              ) : images.length === 0 ? (
+                <div className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">Nenhuma foto cadastrada.</div>
+              ) : (
+                <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
+                  {images.map((img) => (
+                    <div key={img.id} className="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800">
+                      <div className="aspect-square bg-zinc-100 dark:bg-zinc-900">
+                        <img src={img.url} alt="SKU" className="h-full w-full object-cover" />
+                      </div>
+                      <div className="flex items-center justify-between gap-2 px-3 py-2">
+                        <div className="truncate text-xs text-zinc-600 dark:text-zinc-400">{img.id}</div>
+                        <button
+                          className="rounded-lg border border-red-200 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50 dark:border-red-900/60 dark:text-red-200 dark:hover:bg-red-950/40"
+                          disabled={!!deletingImageId || uploadingImage}
+                          onClick={async () => {
+                            if (!imagesSku) return;
+                            setDeletingImageId(img.id);
+                            setError(null);
+                            try {
+                              await deleteSkuImage({ skuId: imagesSku.id, imageId: img.id });
+                              setImages((prev) => prev.filter((x) => x.id !== img.id));
+                            } catch (e3) {
+                              setError(errorMessage(e3));
+                            } finally {
+                              setDeletingImageId(null);
+                            }
+                          }}
+                        >
+                          {deletingImageId === img.id ? "Removendo…" : "Remover"}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : null}
+      </Modal>
     </div>
   );
 }
 
-function SkuTable(props: { items: SkuResult[]; onConfigureStock: (sku: SkuResult) => void }) {
+function SkuTable(props: {
+  items: SkuResult[];
+  onConfigureStock: (sku: SkuResult) => void;
+  onManageImages: (sku: SkuResult) => void;
+}) {
   return (
     <div className="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800">
       <div className="grid grid-cols-12 gap-2 border-b border-zinc-200 bg-zinc-50 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
         <div className="col-span-2">Código</div>
-        <div className="col-span-4">Nome</div>
+        <div className="col-span-3">Nome</div>
         <div className="col-span-2">Categoria</div>
         <div className="col-span-2 text-right">Preço</div>
         <div className="col-span-1 text-right">Ativo</div>
-        <div className="col-span-1 text-right">Estoque</div>
+        <div className="col-span-2 text-right">Ações</div>
       </div>
       {props.items.map((s) => (
         <div
@@ -494,16 +638,22 @@ function SkuTable(props: { items: SkuResult[]; onConfigureStock: (sku: SkuResult
           className="grid grid-cols-12 gap-2 border-b border-zinc-100 px-3 py-2 text-sm text-zinc-900 last:border-b-0 dark:border-zinc-900 dark:text-zinc-50"
         >
           <div className="col-span-2 font-medium">{s.code}</div>
-          <div className="col-span-4 truncate">{s.name}</div>
+          <div className="col-span-3 truncate">{s.name}</div>
           <div className="col-span-2">{s.categoryCode}</div>
           <div className="col-span-2 text-right">{formatMoney(s.priceCents)}</div>
           <div className="col-span-1 text-right">{s.isActive ? "Sim" : "Não"}</div>
-          <div className="col-span-1 text-right">
+          <div className="col-span-2 flex justify-end gap-2">
+            <button
+              className="rounded-lg border border-zinc-200 px-2 py-1 text-xs font-medium text-zinc-900 hover:bg-zinc-50 dark:border-zinc-800 dark:text-zinc-50 dark:hover:bg-zinc-900"
+              onClick={() => props.onManageImages(s)}
+            >
+              Fotos
+            </button>
             <button
               className="rounded-lg border border-zinc-200 px-2 py-1 text-xs font-medium text-zinc-900 hover:bg-zinc-50 dark:border-zinc-800 dark:text-zinc-50 dark:hover:bg-zinc-900"
               onClick={() => props.onConfigureStock(s)}
             >
-              Configurar
+              Estoque
             </button>
           </div>
         </div>

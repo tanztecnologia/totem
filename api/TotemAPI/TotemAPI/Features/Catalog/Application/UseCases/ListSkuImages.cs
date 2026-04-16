@@ -1,4 +1,5 @@
 using TotemAPI.Features.Catalog.Application.Abstractions;
+using TotemAPI.Infrastructure.Storage;
 
 namespace TotemAPI.Features.Catalog.Application.UseCases;
 
@@ -9,10 +10,12 @@ public sealed record SkuImageResult(Guid Id, string Url, DateTimeOffset CreatedA
 public sealed class ListSkuImages
 {
     private readonly ISkuRepository _skus;
+    private readonly ISkuImageStorage _storage;
 
-    public ListSkuImages(ISkuRepository skus)
+    public ListSkuImages(ISkuRepository skus, ISkuImageStorage storage)
     {
         _skus = skus;
+        _storage = storage;
     }
 
     public async Task<IReadOnlyList<SkuImageResult>> HandleAsync(ListSkuImagesQuery query, CancellationToken ct)
@@ -24,7 +27,18 @@ public sealed class ListSkuImages
         if (sku is null) return Array.Empty<SkuImageResult>();
 
         var images = await _skus.ListImagesAsync(query.TenantId, query.SkuId, ct);
-        return images.Select(x => new SkuImageResult(x.Id, x.Url, x.CreatedAt)).ToList().AsReadOnly();
+        var cleaned = new List<SkuImageResult>();
+        foreach (var img in images)
+        {
+            if (await _storage.ExistsAsync(img.S3Key, ct))
+            {
+                cleaned.Add(new SkuImageResult(img.Id, img.Url, img.CreatedAt));
+                continue;
+            }
+
+            await _skus.DeleteImageAsync(query.TenantId, query.SkuId, img.Id, ct);
+        }
+
+        return cleaned.AsReadOnly();
     }
 }
-

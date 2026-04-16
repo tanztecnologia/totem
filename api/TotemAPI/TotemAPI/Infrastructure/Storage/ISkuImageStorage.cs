@@ -12,5 +12,6 @@ public interface ISkuImageStorage
     );
 
     Task DeleteAsync(string key, CancellationToken ct);
-}
 
+    Task<bool> ExistsAsync(string key, CancellationToken ct);
+}
