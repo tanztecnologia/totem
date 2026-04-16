@@ -8,6 +8,7 @@ public sealed class InMemorySkuRepository : ISkuRepository
 {
     private readonly ConcurrentDictionary<Guid, Sku> _byId = new();
     private readonly ConcurrentDictionary<(Guid TenantId, string Code), Guid> _idByCode = new();
+    private readonly ConcurrentDictionary<(Guid TenantId, Guid SkuId), ConcurrentDictionary<Guid, SkuStockConsumption>> _stockConsumptions = new();
 
     public Task<IReadOnlyList<Sku>> ListAsync(Guid tenantId, CancellationToken ct)
     {
@@ -40,6 +41,58 @@ public sealed class InMemorySkuRepository : ISkuRepository
             .DefaultIfEmpty(0)
             .Max();
         return Task.FromResult(max);
+    }
+
+    public Task<IReadOnlyList<SkuStockConsumption>> ListStockConsumptionsAsync(Guid tenantId, Guid skuId, CancellationToken ct)
+    {
+        if (tenantId == Guid.Empty) return Task.FromResult<IReadOnlyList<SkuStockConsumption>>(Array.Empty<SkuStockConsumption>());
+        if (skuId == Guid.Empty) return Task.FromResult<IReadOnlyList<SkuStockConsumption>>(Array.Empty<SkuStockConsumption>());
+
+        if (!_stockConsumptions.TryGetValue((tenantId, skuId), out var map))
+            return Task.FromResult<IReadOnlyList<SkuStockConsumption>>(Array.Empty<SkuStockConsumption>());
+
+        var list = map.Values.OrderBy(x => x.SourceSkuId).ToList().AsReadOnly();
+        return Task.FromResult<IReadOnlyList<SkuStockConsumption>>(list);
+    }
+
+    public Task ReplaceStockConsumptionsAsync(Guid tenantId, Guid skuId, IReadOnlyList<SkuStockConsumption> items, CancellationToken ct)
+    {
+        if (tenantId == Guid.Empty) throw new ArgumentException("TenantId inválido.");
+        if (skuId == Guid.Empty) throw new ArgumentException("SkuId inválido.");
+
+        var next = new ConcurrentDictionary<Guid, SkuStockConsumption>();
+        foreach (var item in items)
+        {
+            if (item.TenantId != tenantId) throw new ArgumentException("TenantId inválido.");
+            if (item.SkuId != skuId) throw new ArgumentException("SkuId inválido.");
+            if (item.SourceSkuId == Guid.Empty) throw new ArgumentException("SourceSkuId inválido.");
+            if (item.QuantityBase <= 0) throw new ArgumentException("QuantityBase inválido.");
+
+            var stored = item with { Id = item.Id == Guid.Empty ? Guid.NewGuid() : item.Id };
+            if (!next.TryAdd(stored.SourceSkuId, stored)) throw new InvalidOperationException("Consumo duplicado.");
+        }
+
+        _stockConsumptions[(tenantId, skuId)] = next;
+        return Task.CompletedTask;
+    }
+
+    public Task ApplyStockDeltaAsync(Guid tenantId, Guid skuId, decimal deltaBaseQty, CancellationToken ct)
+    {
+        if (tenantId == Guid.Empty) throw new ArgumentException("TenantId inválido.");
+        if (skuId == Guid.Empty) throw new ArgumentException("SkuId inválido.");
+        if (deltaBaseQty == 0) return Task.CompletedTask;
+
+        if (!_byId.TryGetValue(skuId, out var sku) || sku.TenantId != tenantId)
+            throw new InvalidOperationException("SKU não encontrado.");
+
+        if (sku.StockBaseUnit is null || sku.StockOnHandBaseQty is null)
+            throw new InvalidOperationException("Controle de estoque não configurado para o SKU.");
+
+        var next = sku.StockOnHandBaseQty.Value + deltaBaseQty;
+        if (next < 0) throw new InvalidOperationException("Estoque insuficiente.");
+
+        _byId[skuId] = sku with { StockOnHandBaseQty = next, UpdatedAt = DateTimeOffset.UtcNow };
+        return Task.CompletedTask;
     }
 
     public Task<SkuSearchPageSnapshot> SearchPageAsync(
@@ -150,6 +203,7 @@ public sealed class InMemorySkuRepository : ISkuRepository
 
         _byId.TryRemove(skuId, out _);
         _idByCode.TryRemove((tenantId, NormalizeCode(sku.Code)), out _);
+        _stockConsumptions.TryRemove((tenantId, skuId), out _);
         return Task.CompletedTask;
     }
 

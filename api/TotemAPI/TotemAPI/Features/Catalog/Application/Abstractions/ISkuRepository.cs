@@ -8,6 +8,9 @@ public interface ISkuRepository
     Task<Sku?> GetByIdAsync(Guid tenantId, Guid skuId, CancellationToken ct);
     Task<Sku?> GetByCodeAsync(Guid tenantId, string code, CancellationToken ct);
     Task<int> GetMaxCodeNumberAsync(Guid tenantId, CancellationToken ct);
+    Task<IReadOnlyList<SkuStockConsumption>> ListStockConsumptionsAsync(Guid tenantId, Guid skuId, CancellationToken ct);
+    Task ReplaceStockConsumptionsAsync(Guid tenantId, Guid skuId, IReadOnlyList<SkuStockConsumption> items, CancellationToken ct);
+    Task ApplyStockDeltaAsync(Guid tenantId, Guid skuId, decimal deltaBaseQty, CancellationToken ct);
     Task<SkuSearchPageSnapshot> SearchPageAsync(
         Guid tenantId,
         string? query,

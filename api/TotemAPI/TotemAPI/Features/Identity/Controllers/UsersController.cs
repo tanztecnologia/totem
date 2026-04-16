@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TotemAPI.Features.Identity.Application.UseCases;
 using TotemAPI.Features.Identity.Domain;
+using TotemAPI.Infrastructure.Auth;
 
 namespace TotemAPI.Features.Identity.Controllers;
 
@@ -19,7 +20,7 @@ public sealed class UsersController : ControllerBase
     )
     {
         if (!TryGetTenantId(out var tenantId)) return Unauthorized();
-        if (!User.IsInRole(UserRole.Admin.ToString())) return Forbid();
+        if (!User.HasPermission(Permissions.UsersManage)) return Forbid();
 
         try
         {
@@ -51,7 +52,8 @@ public sealed class UsersController : ControllerBase
         var sub = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
         var email = User.FindFirstValue(ClaimTypes.Email) ?? User.FindFirstValue("email");
         var role = User.FindFirstValue(ClaimTypes.Role);
-        return Ok(new { tenantId, userId = sub, email, role });
+        var permissions = User.FindAll(ClaimsPrincipalExtensions.PermissionClaimType).Select(x => x.Value).Distinct().ToList().AsReadOnly();
+        return Ok(new { tenantId, userId = sub, email, role, permissions });
     }
 
     private bool TryGetTenantId(out Guid tenantId)
@@ -67,4 +69,3 @@ public sealed record CreateUserRequest(
     string Password,
     UserRole Role
 );
-

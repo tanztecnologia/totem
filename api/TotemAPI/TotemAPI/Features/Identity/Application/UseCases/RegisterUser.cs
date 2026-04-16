@@ -14,6 +14,7 @@ public sealed record AuthResult(
     Guid UserId,
     string Email,
     UserRole Role,
+    IReadOnlyList<string> Permissions,
     string Token
 );
 
@@ -66,7 +67,7 @@ public sealed class RegisterUser
         await _users.AddAsync(user, ct);
 
         var token = _tokenService.CreateToken(user);
-        return new AuthResult(user.TenantId, user.Id, user.Email, user.Role, token);
+        var permissions = Permissions.ForRole(user.Role);
+        return new AuthResult(user.TenantId, user.Id, user.Email, user.Role, permissions, token);
     }
 }
-

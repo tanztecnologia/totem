@@ -59,6 +59,74 @@ public sealed class EfSkuRepository : ISkuRepository
         return 0;
     }
 
+    public async Task<IReadOnlyList<SkuStockConsumption>> ListStockConsumptionsAsync(Guid tenantId, Guid skuId, CancellationToken ct)
+    {
+        if (tenantId == Guid.Empty) return Array.Empty<SkuStockConsumption>();
+        if (skuId == Guid.Empty) return Array.Empty<SkuStockConsumption>();
+
+        return await _db.SkuStockConsumptions
+            .AsNoTracking()
+            .Where(x => x.TenantId == tenantId && x.SkuId == skuId)
+            .OrderBy(x => x.SourceSkuId)
+            .Select(x => x.ToDomain())
+            .ToListAsync(ct);
+    }
+
+    public async Task ReplaceStockConsumptionsAsync(
+        Guid tenantId,
+        Guid skuId,
+        IReadOnlyList<SkuStockConsumption> items,
+        CancellationToken ct
+    )
+    {
+        if (tenantId == Guid.Empty) throw new ArgumentException("TenantId inválido.");
+        if (skuId == Guid.Empty) throw new ArgumentException("SkuId inválido.");
+
+        var existing = await _db.SkuStockConsumptions.Where(x => x.TenantId == tenantId && x.SkuId == skuId).ToListAsync(ct);
+        if (existing.Count > 0) _db.SkuStockConsumptions.RemoveRange(existing);
+
+        foreach (var item in items)
+        {
+            if (item.TenantId != tenantId) throw new ArgumentException("TenantId inválido.");
+            if (item.SkuId != skuId) throw new ArgumentException("SkuId inválido.");
+            if (item.SourceSkuId == Guid.Empty) throw new ArgumentException("SourceSkuId inválido.");
+            if (item.QuantityBase <= 0) throw new ArgumentException("QuantityBase inválido.");
+
+            _db.SkuStockConsumptions.Add(
+                new SkuStockConsumptionRow
+                {
+                    Id = item.Id == Guid.Empty ? Guid.NewGuid() : item.Id,
+                    TenantId = tenantId,
+                    SkuId = skuId,
+                    SourceSkuId = item.SourceSkuId,
+                    QuantityBase = item.QuantityBase,
+                }
+            );
+        }
+
+        await _db.SaveChangesAsync(ct);
+    }
+
+    public async Task ApplyStockDeltaAsync(Guid tenantId, Guid skuId, decimal deltaBaseQty, CancellationToken ct)
+    {
+        if (tenantId == Guid.Empty) throw new ArgumentException("TenantId inválido.");
+        if (skuId == Guid.Empty) throw new ArgumentException("SkuId inválido.");
+        if (deltaBaseQty == 0) return;
+
+        var row = await _db.Skus.SingleOrDefaultAsync(x => x.TenantId == tenantId && x.Id == skuId, ct);
+        if (row is null) throw new InvalidOperationException("SKU não encontrado.");
+
+        if (row.StockBaseUnit is null || row.StockOnHandBaseQty is null)
+            throw new InvalidOperationException("Controle de estoque não configurado para o SKU.");
+
+        var next = row.StockOnHandBaseQty.Value + deltaBaseQty;
+        if (next < 0) throw new InvalidOperationException("Estoque insuficiente.");
+
+        row.StockOnHandBaseQty = next;
+        row.UpdatedAt = DateTimeOffset.UtcNow;
+        await _db.SaveChangesAsync(ct);
+    }
+
     public async Task<SkuSearchPageSnapshot> SearchPageAsync(
         Guid tenantId,
         string? query,
@@ -150,6 +218,22 @@ public sealed class EfSkuRepository : ISkuRepository
             NfeUTrib = sku.NfeUTrib,
             NfeQTrib = sku.NfeQTrib,
             NfeVUnTrib = sku.NfeVUnTrib,
+            NfeIcmsOrig = sku.NfeIcmsOrig,
+            NfeIcmsCst = sku.NfeIcmsCst,
+            NfeIcmsModBc = sku.NfeIcmsModBc,
+            NfeIcmsVBc = sku.NfeIcmsVBc,
+            NfeIcmsPIcms = sku.NfeIcmsPIcms,
+            NfeIcmsVIcms = sku.NfeIcmsVIcms,
+            NfePisCst = sku.NfePisCst,
+            NfePisVBc = sku.NfePisVBc,
+            NfePisPPis = sku.NfePisPPis,
+            NfePisVPis = sku.NfePisVPis,
+            NfeCofinsCst = sku.NfeCofinsCst,
+            NfeCofinsVBc = sku.NfeCofinsVBc,
+            NfeCofinsPCofins = sku.NfeCofinsPCofins,
+            NfeCofinsVCofins = sku.NfeCofinsVCofins,
+            StockBaseUnit = sku.StockBaseUnit,
+            StockOnHandBaseQty = sku.StockOnHandBaseQty,
             IsActive = sku.IsActive,
             CreatedAt = sku.CreatedAt,
             UpdatedAt = sku.UpdatedAt,
@@ -182,6 +266,22 @@ public sealed class EfSkuRepository : ISkuRepository
         row.NfeUTrib = sku.NfeUTrib;
         row.NfeQTrib = sku.NfeQTrib;
         row.NfeVUnTrib = sku.NfeVUnTrib;
+        row.NfeIcmsOrig = sku.NfeIcmsOrig;
+        row.NfeIcmsCst = sku.NfeIcmsCst;
+        row.NfeIcmsModBc = sku.NfeIcmsModBc;
+        row.NfeIcmsVBc = sku.NfeIcmsVBc;
+        row.NfeIcmsPIcms = sku.NfeIcmsPIcms;
+        row.NfeIcmsVIcms = sku.NfeIcmsVIcms;
+        row.NfePisCst = sku.NfePisCst;
+        row.NfePisVBc = sku.NfePisVBc;
+        row.NfePisPPis = sku.NfePisPPis;
+        row.NfePisVPis = sku.NfePisVPis;
+        row.NfeCofinsCst = sku.NfeCofinsCst;
+        row.NfeCofinsVBc = sku.NfeCofinsVBc;
+        row.NfeCofinsPCofins = sku.NfeCofinsPCofins;
+        row.NfeCofinsVCofins = sku.NfeCofinsVCofins;
+        row.StockBaseUnit = sku.StockBaseUnit;
+        row.StockOnHandBaseQty = sku.StockOnHandBaseQty;
         row.IsActive = sku.IsActive;
         row.UpdatedAt = sku.UpdatedAt;
 

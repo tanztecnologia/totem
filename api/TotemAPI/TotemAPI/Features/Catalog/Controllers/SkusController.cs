@@ -2,7 +2,9 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TotemAPI.Features.Catalog.Application.UseCases;
+using TotemAPI.Features.Catalog.Domain;
 using TotemAPI.Features.Identity.Domain;
+using TotemAPI.Infrastructure.Auth;
 
 namespace TotemAPI.Features.Catalog.Controllers;
 
@@ -125,6 +127,8 @@ public sealed class SkusController : ControllerBase
                     PriceCents: request.PriceCents,
                     AveragePrepSeconds: request.AveragePrepSeconds,
                     ImageUrl: request.ImageUrl,
+                    StockBaseUnit: request.StockBaseUnit,
+                    StockOnHandBaseQty: request.StockOnHandBaseQty,
                     IsActive: request.IsActive
                 ),
                 ct
@@ -163,8 +167,93 @@ public sealed class SkusController : ControllerBase
                     PriceCents: request.PriceCents,
                     AveragePrepSeconds: request.AveragePrepSeconds,
                     ImageUrl: request.ImageUrl,
+                    StockBaseUnit: request.StockBaseUnit,
+                    StockOnHandBaseQty: request.StockOnHandBaseQty,
                     IsActive: request.IsActive
                 ),
+                ct
+            );
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { error = ex.Message });
+        }
+    }
+
+    [HttpGet("{id:guid}/stock/consumptions")]
+    public async Task<ActionResult<IReadOnlyList<SkuStockConsumptionResult>>> ListStockConsumptions(
+        [FromServices] ListSkuStockConsumptions listSkuStockConsumptions,
+        [FromRoute] Guid id,
+        CancellationToken ct
+    )
+    {
+        if (!TryGetTenantId(out var tenantId)) return Unauthorized();
+        if (!CanReadSkus()) return Forbid();
+
+        try
+        {
+            var result = await listSkuStockConsumptions.HandleAsync(new ListSkuStockConsumptionsQuery(tenantId, id), ct);
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpPut("{id:guid}/stock/consumptions")]
+    public async Task<ActionResult<IReadOnlyList<SkuStockConsumptionResult>>> ReplaceStockConsumptions(
+        [FromServices] ReplaceSkuStockConsumptions replaceSkuStockConsumptions,
+        [FromRoute] Guid id,
+        [FromBody] ReplaceSkuStockConsumptionsRequest request,
+        CancellationToken ct
+    )
+    {
+        if (!TryGetTenantId(out var tenantId)) return Unauthorized();
+        if (!CanWriteSkus()) return Forbid();
+
+        try
+        {
+            var result = await replaceSkuStockConsumptions.HandleAsync(
+                new ReplaceSkuStockConsumptionsCommand(
+                    TenantId: tenantId,
+                    SkuId: id,
+                    Items: (request.Items ?? Array.Empty<ReplaceSkuStockConsumptionItem>()).ToList().AsReadOnly()
+                ),
+                ct
+            );
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { error = ex.Message });
+        }
+    }
+
+    [HttpPost("{id:guid}/stock/entry")]
+    public async Task<ActionResult<SkuResult>> AddStockEntry(
+        [FromServices] AddSkuStockEntry addSkuStockEntry,
+        [FromRoute] Guid id,
+        [FromBody] AddSkuStockEntryRequest request,
+        CancellationToken ct
+    )
+    {
+        if (!TryGetTenantId(out var tenantId)) return Unauthorized();
+        if (!CanWriteSkus()) return Forbid();
+
+        try
+        {
+            var result = await addSkuStockEntry.HandleAsync(
+                new AddSkuStockEntryCommand(tenantId, id, request.Quantity, request.Unit),
                 ct
             );
             return result is null ? NotFound() : Ok(result);
@@ -202,16 +291,14 @@ public sealed class SkusController : ControllerBase
 
     private bool CanReadSkus()
     {
-        return User.IsInRole(UserRole.Admin.ToString())
-            || User.IsInRole(UserRole.Staff.ToString())
-            || User.IsInRole(UserRole.Totem.ToString())
-            || User.IsInRole(UserRole.Waiter.ToString());
+        return User.HasPermission(Permissions.CatalogRead);
     }
 
     private bool CanWriteSkus()
     {
-        return User.IsInRole(UserRole.Admin.ToString()) || User.IsInRole(UserRole.Staff.ToString());
+        return User.HasPermission(Permissions.CatalogWrite);
     }
+
 
     private bool TryGetTenantId(out Guid tenantId)
     {
@@ -227,6 +314,8 @@ public sealed record CreateSkuRequest(
     int PriceCents,
     int? AveragePrepSeconds,
     string? ImageUrl,
+    StockBaseUnit? StockBaseUnit,
+    decimal? StockOnHandBaseQty,
     bool IsActive
 );
 
@@ -236,5 +325,16 @@ public sealed record UpdateSkuRequest(
     int PriceCents,
     int? AveragePrepSeconds,
     string? ImageUrl,
+    StockBaseUnit? StockBaseUnit,
+    decimal? StockOnHandBaseQty,
     bool IsActive
+);
+
+public sealed record ReplaceSkuStockConsumptionsRequest(
+    IReadOnlyList<ReplaceSkuStockConsumptionItem> Items
+);
+
+public sealed record AddSkuStockEntryRequest(
+    decimal Quantity,
+    string Unit
 );

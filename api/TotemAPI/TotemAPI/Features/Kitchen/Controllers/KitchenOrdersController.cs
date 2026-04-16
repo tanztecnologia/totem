@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using TotemAPI.Features.Checkout.Domain;
 using TotemAPI.Features.Identity.Domain;
 using TotemAPI.Features.Kitchen.Application.UseCases;
+using TotemAPI.Infrastructure.Auth;
 
 namespace TotemAPI.Features.Kitchen.Controllers;
 
@@ -112,7 +113,7 @@ public sealed class KitchenOrdersController : ControllerBase
 
     private bool CanKitchen()
     {
-        return User.IsInRole(UserRole.Admin.ToString()) || User.IsInRole(UserRole.Staff.ToString());
+        return User.HasPermission(Permissions.KitchenRead) || User.HasPermission(Permissions.KitchenWrite);
     }
 
     private bool TryGetTenantId(out Guid tenantId)
@@ -126,4 +127,3 @@ public sealed class KitchenOrdersController : ControllerBase
 public sealed record UpdateKitchenOrderStatusRequest(
     OrderKitchenStatus KitchenStatus
 );
-

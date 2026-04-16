@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using TotemAPI.Features.Checkout.Application.UseCases;
 using TotemAPI.Features.Checkout.Domain;
 using TotemAPI.Features.Identity.Domain;
+using TotemAPI.Infrastructure.Auth;
 
 namespace TotemAPI.Features.Checkout.Controllers;
 
@@ -98,10 +99,7 @@ public sealed class CheckoutController : ControllerBase
 
     private bool CanCheckout()
     {
-        return User.IsInRole(UserRole.Admin.ToString())
-            || User.IsInRole(UserRole.Staff.ToString())
-            || User.IsInRole(UserRole.Totem.ToString())
-            || User.IsInRole(UserRole.Waiter.ToString());
+        return User.HasPermission(Permissions.CheckoutWrite) || User.HasPermission(Permissions.CheckoutRead);
     }
 
     private bool TryGetTenantId(out Guid tenantId)

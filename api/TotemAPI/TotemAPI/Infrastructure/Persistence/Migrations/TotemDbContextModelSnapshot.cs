@@ -409,6 +409,48 @@ namespace TotemAPI.Infrastructure.Persistence.Migrations
                     b.Property<string>("NfeCfop")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("NfeCofinsCst")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal?>("NfeCofinsPCofins")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal?>("NfeCofinsVBc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal?>("NfeCofinsVCofins")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NfeIcmsCst")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NfeIcmsModBc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NfeIcmsOrig")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal?>("NfeIcmsPIcms")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal?>("NfeIcmsVBc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal?>("NfeIcmsVIcms")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NfePisCst")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal?>("NfePisPPis")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal?>("NfePisVBc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal?>("NfePisVPis")
+                        .HasColumnType("TEXT");
+
                     b.Property<decimal?>("NfeQCom")
                         .HasColumnType("TEXT");
 
@@ -437,6 +479,12 @@ namespace TotemAPI.Infrastructure.Persistence.Migrations
                     b.Property<int>("PriceCents")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int?>("StockBaseUnit")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal?>("StockOnHandBaseQty")
+                        .HasColumnType("TEXT");
+
                     b.Property<Guid>("TenantId")
                         .HasColumnType("TEXT");
 
@@ -453,6 +501,36 @@ namespace TotemAPI.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("skus", (string)null);
+                });
+
+            modelBuilder.Entity("TotemAPI.Infrastructure.Persistence.SkuStockConsumptionRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("QuantityBase")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("SkuId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("SourceSkuId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "SkuId");
+
+                    b.HasIndex("TenantId", "SkuId", "SourceSkuId")
+                        .IsUnique();
+
+                    b.ToTable("sku_stock_consumptions", (string)null);
                 });
 
             modelBuilder.Entity("TotemAPI.Infrastructure.Persistence.TenantRow", b =>

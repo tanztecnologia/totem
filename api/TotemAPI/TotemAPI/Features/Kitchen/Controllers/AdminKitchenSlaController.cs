@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TotemAPI.Features.Identity.Domain;
 using TotemAPI.Features.Kitchen.Application.UseCases;
+using TotemAPI.Infrastructure.Auth;
 
 namespace TotemAPI.Features.Kitchen.Controllers;
 
@@ -52,7 +53,7 @@ public sealed class AdminKitchenSlaController : ControllerBase
 
     private bool IsAdmin()
     {
-        return User.IsInRole(UserRole.Admin.ToString());
+        return User.HasPermission(Permissions.KitchenSlaManage);
     }
 
     private bool TryGetTenantId(out Guid tenantId)

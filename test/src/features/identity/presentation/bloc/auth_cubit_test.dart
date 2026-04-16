@@ -23,6 +23,7 @@ void main() {
         token: 'token-123',
         tenantName: 'Empresa X',
         password: '123456',
+        permissions: <String>['checkout:write'],
       ),
     );
     final cubit = AuthCubit(login: Login(repo));
@@ -75,6 +76,7 @@ class _FakeAuthRepository implements AuthRepository {
               token: 'token',
               tenantName: 'Empresa X',
               password: '123456',
+              permissions: <String>['checkout:write'],
             );
 
   final bool throwOnLogin;
@@ -90,4 +92,3 @@ class _FakeAuthRepository implements AuthRepository {
     return _session;
   }
 }
-

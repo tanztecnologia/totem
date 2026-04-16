@@ -45,6 +45,10 @@ class TotemApiAuthRepository implements AuthRepository {
     final tenantId = ((resp['tenantId'] ?? resp['TenantId']) as String?)?.trim() ?? '';
     final userId = ((resp['userId'] ?? resp['UserId']) as String?)?.trim() ?? '';
     final responseEmail = ((resp['email'] ?? resp['Email']) as String?)?.trim() ?? trimmedEmail;
+    final permsRaw = resp['permissions'] ?? resp['Permissions'];
+    final permissions = permsRaw is List
+        ? permsRaw.map((e) => e?.toString() ?? '').where((e) => e.trim().isNotEmpty).toList(growable: false)
+        : const <String>[];
 
     if (token.isEmpty) throw Exception('Resposta inválida do login (token ausente).');
     if (role.isEmpty) throw Exception('Resposta inválida do login (role ausente).');
@@ -59,7 +63,7 @@ class TotemApiAuthRepository implements AuthRepository {
       token: token,
       tenantName: trimmedTenant,
       password: trimmedPassword,
+      permissions: permissions,
     );
   }
 }
-

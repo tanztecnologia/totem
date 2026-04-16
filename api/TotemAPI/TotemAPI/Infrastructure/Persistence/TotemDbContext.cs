@@ -20,6 +20,7 @@ public sealed class TotemDbContext : DbContext
     public DbSet<UserRow> Users => Set<UserRow>();
     public DbSet<CategoryRow> Categories => Set<CategoryRow>();
     public DbSet<SkuRow> Skus => Set<SkuRow>();
+    public DbSet<SkuStockConsumptionRow> SkuStockConsumptions => Set<SkuStockConsumptionRow>();
     public DbSet<OrderRow> Orders => Set<OrderRow>();
     public DbSet<OrderItemRow> OrderItems => Set<OrderItemRow>();
     public DbSet<PaymentRow> Payments => Set<PaymentRow>();
@@ -77,12 +78,41 @@ public sealed class TotemDbContext : DbContext
             b.Property(x => x.NfeUTrib);
             b.Property(x => x.NfeQTrib);
             b.Property(x => x.NfeVUnTrib);
+            b.Property(x => x.NfeIcmsOrig);
+            b.Property(x => x.NfeIcmsCst);
+            b.Property(x => x.NfeIcmsModBc);
+            b.Property(x => x.NfeIcmsVBc);
+            b.Property(x => x.NfeIcmsPIcms);
+            b.Property(x => x.NfeIcmsVIcms);
+            b.Property(x => x.NfePisCst);
+            b.Property(x => x.NfePisVBc);
+            b.Property(x => x.NfePisPPis);
+            b.Property(x => x.NfePisVPis);
+            b.Property(x => x.NfeCofinsCst);
+            b.Property(x => x.NfeCofinsVBc);
+            b.Property(x => x.NfeCofinsPCofins);
+            b.Property(x => x.NfeCofinsVCofins);
+            b.Property(x => x.StockBaseUnit);
+            b.Property(x => x.StockOnHandBaseQty);
             b.Property(x => x.IsActive).IsRequired();
             b.Property(x => x.CreatedAt).IsRequired();
             b.Property(x => x.UpdatedAt).IsRequired();
             b.HasIndex(x => new { x.TenantId, x.NormalizedCode }).IsUnique();
             b.HasIndex(x => x.TenantId);
             b.HasIndex(x => new { x.TenantId, x.CategoryCode });
+        });
+
+        modelBuilder.Entity<SkuStockConsumptionRow>(b =>
+        {
+            b.ToTable("sku_stock_consumptions");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.TenantId).IsRequired();
+            b.Property(x => x.SkuId).IsRequired();
+            b.Property(x => x.SourceSkuId).IsRequired();
+            b.Property(x => x.QuantityBase).IsRequired();
+            b.HasIndex(x => x.TenantId);
+            b.HasIndex(x => new { x.TenantId, x.SkuId });
+            b.HasIndex(x => new { x.TenantId, x.SkuId, x.SourceSkuId }).IsUnique();
         });
 
         modelBuilder.Entity<CategoryRow>(b =>
@@ -281,9 +311,34 @@ public sealed class SkuRow
     public string? NfeUTrib { get; set; }
     public decimal? NfeQTrib { get; set; }
     public decimal? NfeVUnTrib { get; set; }
+    public string? NfeIcmsOrig { get; set; }
+    public string? NfeIcmsCst { get; set; }
+    public string? NfeIcmsModBc { get; set; }
+    public decimal? NfeIcmsVBc { get; set; }
+    public decimal? NfeIcmsPIcms { get; set; }
+    public decimal? NfeIcmsVIcms { get; set; }
+    public string? NfePisCst { get; set; }
+    public decimal? NfePisVBc { get; set; }
+    public decimal? NfePisPPis { get; set; }
+    public decimal? NfePisVPis { get; set; }
+    public string? NfeCofinsCst { get; set; }
+    public decimal? NfeCofinsVBc { get; set; }
+    public decimal? NfeCofinsPCofins { get; set; }
+    public decimal? NfeCofinsVCofins { get; set; }
+    public StockBaseUnit? StockBaseUnit { get; set; }
+    public decimal? StockOnHandBaseQty { get; set; }
     public bool IsActive { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
+}
+
+public sealed class SkuStockConsumptionRow
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid SkuId { get; set; }
+    public Guid SourceSkuId { get; set; }
+    public decimal QuantityBase { get; set; }
 }
 
 public sealed class OrderRow
@@ -419,12 +474,40 @@ internal static class SkuMapping
             row.NfeUTrib,
             row.NfeQTrib,
             row.NfeVUnTrib,
+            row.NfeIcmsOrig,
+            row.NfeIcmsCst,
+            row.NfeIcmsModBc,
+            row.NfeIcmsVBc,
+            row.NfeIcmsPIcms,
+            row.NfeIcmsVIcms,
+            row.NfePisCst,
+            row.NfePisVBc,
+            row.NfePisPPis,
+            row.NfePisVPis,
+            row.NfeCofinsCst,
+            row.NfeCofinsVBc,
+            row.NfeCofinsPCofins,
+            row.NfeCofinsVCofins,
+            row.StockBaseUnit,
+            row.StockOnHandBaseQty,
             row.IsActive,
             row.CreatedAt,
             row.UpdatedAt
         );
 
     public static string NormalizeCode(string code) => (code ?? string.Empty).Trim().ToUpperInvariant();
+}
+
+internal static class SkuStockConsumptionMapping
+{
+    public static SkuStockConsumption ToDomain(this SkuStockConsumptionRow row) =>
+        new(
+            row.Id,
+            row.TenantId,
+            row.SkuId,
+            row.SourceSkuId,
+            row.QuantityBase
+        );
 }
 
 internal static class CategoryMapping

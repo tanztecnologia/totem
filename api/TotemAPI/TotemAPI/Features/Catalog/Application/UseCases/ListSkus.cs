@@ -19,7 +19,47 @@ public sealed class ListSkus
 
         var list = await _skus.ListAsync(query.TenantId, ct);
         return list
-            .Select(s => new SkuResult(s.Id, s.TenantId, s.CategoryCode, s.Code, s.Name, s.PriceCents, s.AveragePrepSeconds, s.ImageUrl, s.IsActive))
+            .Select(
+                s =>
+                    new SkuResult(
+                        Id: s.Id,
+                        TenantId: s.TenantId,
+                        CategoryCode: s.CategoryCode,
+                        Code: s.Code,
+                        Name: s.Name,
+                        PriceCents: s.PriceCents,
+                        AveragePrepSeconds: s.AveragePrepSeconds,
+                        ImageUrl: s.ImageUrl,
+                        NfeCProd: s.NfeCProd,
+                        NfeCEan: s.NfeCEan,
+                        NfeCfop: s.NfeCfop,
+                        NfeUCom: s.NfeUCom,
+                        NfeQCom: s.NfeQCom,
+                        NfeVUnCom: s.NfeVUnCom,
+                        NfeVProd: s.NfeVProd,
+                        NfeCEanTrib: s.NfeCEanTrib,
+                        NfeUTrib: s.NfeUTrib,
+                        NfeQTrib: s.NfeQTrib,
+                        NfeVUnTrib: s.NfeVUnTrib,
+                        NfeIcmsOrig: s.NfeIcmsOrig,
+                        NfeIcmsCst: s.NfeIcmsCst,
+                        NfeIcmsModBc: s.NfeIcmsModBc,
+                        NfeIcmsVBc: s.NfeIcmsVBc,
+                        NfeIcmsPIcms: s.NfeIcmsPIcms,
+                        NfeIcmsVIcms: s.NfeIcmsVIcms,
+                        NfePisCst: s.NfePisCst,
+                        NfePisVBc: s.NfePisVBc,
+                        NfePisPPis: s.NfePisPPis,
+                        NfePisVPis: s.NfePisVPis,
+                        NfeCofinsCst: s.NfeCofinsCst,
+                        NfeCofinsVBc: s.NfeCofinsVBc,
+                        NfeCofinsPCofins: s.NfeCofinsPCofins,
+                        NfeCofinsVCofins: s.NfeCofinsVCofins,
+                        StockBaseUnit: s.StockBaseUnit,
+                        StockOnHandBaseQty: s.StockOnHandBaseQty,
+                        IsActive: s.IsActive
+                    )
+            )
             .ToList();
     }
 }

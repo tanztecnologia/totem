@@ -595,7 +595,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"categoryCode\": \"00001\",\n  \"name\": \"X Salada\",\n  \"priceCents\": 2800,\n  \"averagePrepSeconds\": 420,\n  \"imageUrl\": null,\n  \"isActive\": true\n}"
+              "raw": "{\n  \"categoryCode\": \"00001\",\n  \"name\": \"X Salada\",\n  \"priceCents\": 2800,\n  \"averagePrepSeconds\": 420,\n  \"imageUrl\": null,\n  \"stockBaseUnit\": 0,\n  \"stockOnHandBaseQty\": 100,\n  \"isActive\": true\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/skus",
@@ -648,7 +648,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"categoryCode\": \"00001\",\n  \"name\": \"X Salada (Atualizado)\",\n  \"priceCents\": 2900,\n  \"averagePrepSeconds\": 480,\n  \"imageUrl\": null,\n  \"isActive\": true\n}"
+              "raw": "{\n  \"categoryCode\": \"00001\",\n  \"name\": \"X Salada (Atualizado)\",\n  \"priceCents\": 2900,\n  \"averagePrepSeconds\": 480,\n  \"imageUrl\": null,\n  \"stockBaseUnit\": 0,\n  \"stockOnHandBaseQty\": 90,\n  \"isActive\": true\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/skus/{{skuId}}",
@@ -659,6 +659,97 @@
                 "api",
                 "skus",
                 "{{skuId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Add SKU Stock Entry",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 10,\n  \"unit\": \"kg\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/skus/{{skuId}}/stock/entry",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "skus",
+                "{{skuId}}",
+                "stock",
+                "entry"
+              ]
+            }
+          }
+        },
+        {
+          "name": "List SKU Stock Consumptions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/skus/{{skuId}}/stock/consumptions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "skus",
+                "{{skuId}}",
+                "stock",
+                "consumptions"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Replace SKU Stock Consumptions",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"sourceSkuCode\": \"00010\",\n      \"quantity\": 200,\n      \"unit\": \"g\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/skus/{{skuId}}/stock/consumptions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "skus",
+                "{{skuId}}",
+                "stock",
+                "consumptions"
               ]
             }
           }

@@ -10,9 +10,11 @@ using TotemAPI.Features.Catalog.Infrastructure;
 using TotemAPI.Features.Checkout.Application.Abstractions;
 using TotemAPI.Features.Checkout.Domain;
 using TotemAPI.Features.Checkout.Infrastructure;
+using TotemAPI.Features.Identity.Domain;
 using TotemAPI.Features.Kitchen.Application.UseCases;
 using TotemAPI.Features.Kitchen.Controllers;
 using TotemAPI.Features.Kitchen.Infrastructure;
+using TotemAPI.Infrastructure.Auth;
 
 namespace TotemAPI.Tests;
 
@@ -53,11 +55,17 @@ public class KitchenOrdersControllerTests
 
         var controller = new KitchenOrdersController();
 
-        var user = new ClaimsPrincipal(new ClaimsIdentity(new[]
+        Enum.TryParse<UserRole>(role, out var parsedRole);
+        var claims = new List<Claim>
         {
             new Claim("tenant_id", tenantId.ToString()),
-            new Claim(ClaimTypes.Role, role)
-        }));
+            new Claim(ClaimTypes.Role, role),
+        };
+        foreach (var perm in Permissions.ForRole(parsedRole))
+        {
+            claims.Add(new Claim(ClaimsPrincipalExtensions.PermissionClaimType, perm));
+        }
+        var user = new ClaimsPrincipal(new ClaimsIdentity(claims, "Test"));
 
         controller.ControllerContext = new ControllerContext
         {
@@ -130,7 +138,9 @@ public class KitchenOrdersControllerTests
                         {
                             new Claim("tenant_id", tenantId.ToString()),
                             new Claim(ClaimTypes.Role, "Admin"),
-                        }
+                            new Claim(ClaimsPrincipalExtensions.PermissionClaimType, Permissions.KitchenSlaManage),
+                        },
+                        "Test"
                     )
                 )
             }
@@ -164,7 +174,9 @@ public class KitchenOrdersControllerTests
                         {
                             new Claim("tenant_id", tenantId.ToString()),
                             new Claim(ClaimTypes.Role, "Admin"),
-                        }
+                            new Claim(ClaimsPrincipalExtensions.PermissionClaimType, Permissions.KitchenSlaManage),
+                        },
+                        "Test"
                     )
                 )
             }

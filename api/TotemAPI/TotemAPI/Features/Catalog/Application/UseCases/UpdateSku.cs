@@ -11,6 +11,8 @@ public sealed record UpdateSkuCommand(
     int PriceCents,
     int? AveragePrepSeconds,
     string? ImageUrl,
+    StockBaseUnit? StockBaseUnit,
+    decimal? StockOnHandBaseQty,
     bool IsActive
 );
 
@@ -46,6 +48,14 @@ public sealed class UpdateSku
         var category = await _categories.GetByCodeAsync(command.TenantId, categoryCode, ct);
         if (category is null) throw new InvalidOperationException("Categoria não encontrada.");
 
+        var nextStockBaseUnit = command.StockBaseUnit ?? current.StockBaseUnit;
+        var nextStockOnHand = command.StockOnHandBaseQty ?? current.StockOnHandBaseQty;
+        if (command.StockBaseUnit is not null && command.StockOnHandBaseQty is null && current.StockBaseUnit != nextStockBaseUnit)
+            throw new ArgumentException("StockOnHandBaseQty é obrigatório quando StockBaseUnit for alterado.");
+        if (nextStockOnHand is not null && nextStockOnHand < 0) throw new ArgumentException("StockOnHandBaseQty inválido.");
+        if (nextStockBaseUnit is null && nextStockOnHand is not null)
+            throw new ArgumentException("StockBaseUnit é obrigatório quando StockOnHandBaseQty for informado.");
+
         var updated = new Sku(
             Id: current.Id,
             TenantId: current.TenantId,
@@ -66,12 +76,65 @@ public sealed class UpdateSku
             NfeUTrib: current.NfeUTrib,
             NfeQTrib: current.NfeQTrib,
             NfeVUnTrib: current.NfeVUnTrib,
+            NfeIcmsOrig: current.NfeIcmsOrig,
+            NfeIcmsCst: current.NfeIcmsCst,
+            NfeIcmsModBc: current.NfeIcmsModBc,
+            NfeIcmsVBc: current.NfeIcmsVBc,
+            NfeIcmsPIcms: current.NfeIcmsPIcms,
+            NfeIcmsVIcms: current.NfeIcmsVIcms,
+            NfePisCst: current.NfePisCst,
+            NfePisVBc: current.NfePisVBc,
+            NfePisPPis: current.NfePisPPis,
+            NfePisVPis: current.NfePisVPis,
+            NfeCofinsCst: current.NfeCofinsCst,
+            NfeCofinsVBc: current.NfeCofinsVBc,
+            NfeCofinsPCofins: current.NfeCofinsPCofins,
+            NfeCofinsVCofins: current.NfeCofinsVCofins,
+            StockBaseUnit: nextStockBaseUnit,
+            StockOnHandBaseQty: nextStockOnHand,
             IsActive: command.IsActive,
             CreatedAt: current.CreatedAt,
             UpdatedAt: DateTimeOffset.UtcNow
         );
 
         await _skus.UpdateAsync(updated, ct);
-        return new SkuResult(updated.Id, updated.TenantId, updated.CategoryCode, updated.Code, updated.Name, updated.PriceCents, updated.AveragePrepSeconds, updated.ImageUrl, updated.IsActive);
+        return new SkuResult(
+            Id: updated.Id,
+            TenantId: updated.TenantId,
+            CategoryCode: updated.CategoryCode,
+            Code: updated.Code,
+            Name: updated.Name,
+            PriceCents: updated.PriceCents,
+            AveragePrepSeconds: updated.AveragePrepSeconds,
+            ImageUrl: updated.ImageUrl,
+            NfeCProd: updated.NfeCProd,
+            NfeCEan: updated.NfeCEan,
+            NfeCfop: updated.NfeCfop,
+            NfeUCom: updated.NfeUCom,
+            NfeQCom: updated.NfeQCom,
+            NfeVUnCom: updated.NfeVUnCom,
+            NfeVProd: updated.NfeVProd,
+            NfeCEanTrib: updated.NfeCEanTrib,
+            NfeUTrib: updated.NfeUTrib,
+            NfeQTrib: updated.NfeQTrib,
+            NfeVUnTrib: updated.NfeVUnTrib,
+            NfeIcmsOrig: updated.NfeIcmsOrig,
+            NfeIcmsCst: updated.NfeIcmsCst,
+            NfeIcmsModBc: updated.NfeIcmsModBc,
+            NfeIcmsVBc: updated.NfeIcmsVBc,
+            NfeIcmsPIcms: updated.NfeIcmsPIcms,
+            NfeIcmsVIcms: updated.NfeIcmsVIcms,
+            NfePisCst: updated.NfePisCst,
+            NfePisVBc: updated.NfePisVBc,
+            NfePisPPis: updated.NfePisPPis,
+            NfePisVPis: updated.NfePisVPis,
+            NfeCofinsCst: updated.NfeCofinsCst,
+            NfeCofinsVBc: updated.NfeCofinsVBc,
+            NfeCofinsPCofins: updated.NfeCofinsPCofins,
+            NfeCofinsVCofins: updated.NfeCofinsVCofins,
+            StockBaseUnit: updated.StockBaseUnit,
+            StockOnHandBaseQty: updated.StockOnHandBaseQty,
+            IsActive: updated.IsActive
+        );
     }
 }

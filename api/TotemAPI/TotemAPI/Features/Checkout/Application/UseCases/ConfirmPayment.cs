@@ -1,6 +1,8 @@
 using TotemAPI.Features.Checkout.Application.Abstractions;
 using TotemAPI.Features.Checkout.Domain;
 using TotemAPI.Features.Cart.Application.Abstractions;
+using TotemAPI.Features.Catalog.Application.Abstractions;
+using TotemAPI.Features.Catalog.Domain;
 
 namespace TotemAPI.Features.Checkout.Application.UseCases;
 
@@ -20,17 +22,20 @@ public sealed class ConfirmPayment
     public ConfirmPayment(
         ICheckoutRepository checkout,
         ITefPaymentService tef,
-        ICartRepository carts
+        ICartRepository carts,
+        ISkuRepository skus
     )
     {
         _checkout = checkout;
         _tef = tef;
         _carts = carts;
+        _skus = skus;
     }
 
     private readonly ICheckoutRepository _checkout;
     private readonly ITefPaymentService _tef;
     private readonly ICartRepository _carts;
+    private readonly ISkuRepository _skus;
 
     public async Task<ConfirmPaymentResult?> HandleAsync(ConfirmPaymentCommand command, CancellationToken ct)
     {
@@ -91,6 +96,11 @@ public sealed class ConfirmPayment
             newOrder = order with { UpdatedAt = now, QueuedAt = queuedAt };
         }
 
+        if (confirmation.IsApproved && newOrder != order && newOrder.Status == OrderStatus.Paid)
+        {
+            await ApplyStockForOrderAsync(command.TenantId, newOrder.Id, ct);
+        }
+
         await _checkout.UpdatePaymentAsync(newPayment, ct);
         if (newOrder != order) await _checkout.UpdateOrderAsync(newOrder, ct);
 
@@ -115,5 +125,44 @@ public sealed class ConfirmPayment
                 PixExpiresAt: newPayment.PixExpiresAt
             )
         );
+    }
+
+    private async Task ApplyStockForOrderAsync(Guid tenantId, Guid orderId, CancellationToken ct)
+    {
+        var items = await _checkout.ListOrderItemsAsync(tenantId, orderId, ct);
+        if (items.Count == 0) return;
+
+        var deltas = new Dictionary<Guid, decimal>();
+
+        foreach (var item in items)
+        {
+            if (item.SkuId == Guid.Empty) continue;
+            if (item.Quantity <= 0) continue;
+
+            var consumptions = await _skus.ListStockConsumptionsAsync(tenantId, item.SkuId, ct);
+            if (consumptions.Count > 0)
+            {
+                foreach (var c in consumptions)
+                {
+                    var delta = -c.QuantityBase * item.Quantity;
+                    if (delta == 0) continue;
+                    deltas[c.SourceSkuId] = deltas.TryGetValue(c.SourceSkuId, out var cur) ? cur + delta : delta;
+                }
+                continue;
+            }
+
+            var sku = await _skus.GetByIdAsync(tenantId, item.SkuId, ct);
+            if (sku is null) continue;
+            if (sku.StockBaseUnit is null || sku.StockOnHandBaseQty is null) continue;
+            if (sku.StockBaseUnit.Value != StockBaseUnit.Unit) continue;
+
+            var deltaSelf = -(decimal)item.Quantity;
+            deltas[sku.Id] = deltas.TryGetValue(sku.Id, out var existing) ? existing + deltaSelf : deltaSelf;
+        }
+
+        foreach (var kv in deltas)
+        {
+            await _skus.ApplyStockDeltaAsync(tenantId, kv.Key, kv.Value, ct);
+        }
     }
 }

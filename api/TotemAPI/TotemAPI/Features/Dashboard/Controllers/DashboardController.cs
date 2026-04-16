@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TotemAPI.Features.Dashboard.Application.UseCases;
 using TotemAPI.Features.Identity.Domain;
+using TotemAPI.Infrastructure.Auth;
 
 namespace TotemAPI.Features.Dashboard.Controllers;
 
@@ -76,7 +77,7 @@ public sealed class DashboardController : ControllerBase
 
     private bool CanUseDashboard()
     {
-        return User.IsInRole(UserRole.Admin.ToString()) || User.IsInRole(UserRole.Staff.ToString());
+        return User.HasPermission(Permissions.DashboardRead);
     }
 
     private bool TryGetTenantId(out Guid tenantId)

@@ -11,6 +11,8 @@ public sealed record CreateSkuCommand(
     int PriceCents,
     int? AveragePrepSeconds,
     string? ImageUrl,
+    StockBaseUnit? StockBaseUnit,
+    decimal? StockOnHandBaseQty,
     bool IsActive
 );
 
@@ -23,6 +25,33 @@ public sealed record SkuResult(
     int PriceCents,
     int? AveragePrepSeconds,
     string? ImageUrl,
+    string? NfeCProd,
+    string? NfeCEan,
+    string? NfeCfop,
+    string? NfeUCom,
+    decimal? NfeQCom,
+    decimal? NfeVUnCom,
+    decimal? NfeVProd,
+    string? NfeCEanTrib,
+    string? NfeUTrib,
+    decimal? NfeQTrib,
+    decimal? NfeVUnTrib,
+    string? NfeIcmsOrig,
+    string? NfeIcmsCst,
+    string? NfeIcmsModBc,
+    decimal? NfeIcmsVBc,
+    decimal? NfeIcmsPIcms,
+    decimal? NfeIcmsVIcms,
+    string? NfePisCst,
+    decimal? NfePisVBc,
+    decimal? NfePisPPis,
+    decimal? NfePisVPis,
+    string? NfeCofinsCst,
+    decimal? NfeCofinsVBc,
+    decimal? NfeCofinsPCofins,
+    decimal? NfeCofinsVCofins,
+    StockBaseUnit? StockBaseUnit,
+    decimal? StockOnHandBaseQty,
     bool IsActive
 );
 
@@ -45,11 +74,17 @@ public sealed class CreateSku
 
         var name = (command.Name ?? string.Empty).Trim();
         var imageUrl = string.IsNullOrWhiteSpace(command.ImageUrl) ? null : command.ImageUrl.Trim();
+        var stockOnHand = command.StockOnHandBaseQty;
 
         if (name.Length < 2) throw new ArgumentException("Name inválido.");
         if (command.PriceCents < 0) throw new ArgumentException("PriceCents inválido.");
         if (command.AveragePrepSeconds is not null && command.AveragePrepSeconds <= 0)
             throw new ArgumentException("AveragePrepSeconds inválido.");
+        if (stockOnHand is not null && stockOnHand < 0) throw new ArgumentException("StockOnHandBaseQty inválido.");
+        if (command.StockBaseUnit is null && stockOnHand is not null)
+            throw new ArgumentException("StockBaseUnit é obrigatório quando StockOnHandBaseQty for informado.");
+        if (command.StockBaseUnit is not null && stockOnHand is null)
+            stockOnHand = 0;
 
         var category = await _categories.GetByCodeAsync(command.TenantId, categoryCode, ct);
         if (category is null) throw new InvalidOperationException("Categoria não encontrada.");
@@ -80,6 +115,22 @@ public sealed class CreateSku
                 NfeUTrib: null,
                 NfeQTrib: null,
                 NfeVUnTrib: null,
+                NfeIcmsOrig: null,
+                NfeIcmsCst: null,
+                NfeIcmsModBc: null,
+                NfeIcmsVBc: null,
+                NfeIcmsPIcms: null,
+                NfeIcmsVIcms: null,
+                NfePisCst: null,
+                NfePisVBc: null,
+                NfePisPPis: null,
+                NfePisVPis: null,
+                NfeCofinsCst: null,
+                NfeCofinsVBc: null,
+                NfeCofinsPCofins: null,
+                NfeCofinsVCofins: null,
+                StockBaseUnit: command.StockBaseUnit,
+                StockOnHandBaseQty: stockOnHand,
                 IsActive: command.IsActive,
                 CreatedAt: now,
                 UpdatedAt: now
@@ -88,7 +139,44 @@ public sealed class CreateSku
             try
             {
                 await _skus.AddAsync(sku, ct);
-                return new SkuResult(sku.Id, sku.TenantId, sku.CategoryCode, sku.Code, sku.Name, sku.PriceCents, sku.AveragePrepSeconds, sku.ImageUrl, sku.IsActive);
+                return new SkuResult(
+                    Id: sku.Id,
+                    TenantId: sku.TenantId,
+                    CategoryCode: sku.CategoryCode,
+                    Code: sku.Code,
+                    Name: sku.Name,
+                    PriceCents: sku.PriceCents,
+                    AveragePrepSeconds: sku.AveragePrepSeconds,
+                    ImageUrl: sku.ImageUrl,
+                    NfeCProd: sku.NfeCProd,
+                    NfeCEan: sku.NfeCEan,
+                    NfeCfop: sku.NfeCfop,
+                    NfeUCom: sku.NfeUCom,
+                    NfeQCom: sku.NfeQCom,
+                    NfeVUnCom: sku.NfeVUnCom,
+                    NfeVProd: sku.NfeVProd,
+                    NfeCEanTrib: sku.NfeCEanTrib,
+                    NfeUTrib: sku.NfeUTrib,
+                    NfeQTrib: sku.NfeQTrib,
+                    NfeVUnTrib: sku.NfeVUnTrib,
+                    NfeIcmsOrig: sku.NfeIcmsOrig,
+                    NfeIcmsCst: sku.NfeIcmsCst,
+                    NfeIcmsModBc: sku.NfeIcmsModBc,
+                    NfeIcmsVBc: sku.NfeIcmsVBc,
+                    NfeIcmsPIcms: sku.NfeIcmsPIcms,
+                    NfeIcmsVIcms: sku.NfeIcmsVIcms,
+                    NfePisCst: sku.NfePisCst,
+                    NfePisVBc: sku.NfePisVBc,
+                    NfePisPPis: sku.NfePisPPis,
+                    NfePisVPis: sku.NfePisVPis,
+                    NfeCofinsCst: sku.NfeCofinsCst,
+                    NfeCofinsVBc: sku.NfeCofinsVBc,
+                    NfeCofinsPCofins: sku.NfeCofinsPCofins,
+                    NfeCofinsVCofins: sku.NfeCofinsVCofins,
+                    StockBaseUnit: sku.StockBaseUnit,
+                    StockOnHandBaseQty: sku.StockOnHandBaseQty,
+                    IsActive: sku.IsActive
+                );
             }
             catch (DbUpdateException) when (attempt < 2)
             {

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TotemAPI.Features.Catalog.Application.UseCases;
 using TotemAPI.Features.Identity.Domain;
+using TotemAPI.Infrastructure.Auth;
 
 namespace TotemAPI.Features.Catalog.Controllers;
 
@@ -133,16 +134,14 @@ public sealed class CategoriesController : ControllerBase
 
     private bool CanReadCategories()
     {
-        return User.IsInRole(UserRole.Admin.ToString())
-            || User.IsInRole(UserRole.Staff.ToString())
-            || User.IsInRole(UserRole.Totem.ToString())
-            || User.IsInRole(UserRole.Waiter.ToString());
+        return User.HasPermission(Permissions.CatalogRead);
     }
 
     private bool CanWriteCategories()
     {
-        return User.IsInRole(UserRole.Admin.ToString()) || User.IsInRole(UserRole.Staff.ToString());
+        return User.HasPermission(Permissions.CatalogWrite);
     }
+
 
     private bool TryGetTenantId(out Guid tenantId)
     {

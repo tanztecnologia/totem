@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using TotemAPI.Features.Identity.Application.Abstractions;
 using TotemAPI.Features.Identity.Domain;
+using TotemAPI.Infrastructure.Auth;
 
 namespace TotemAPI.Features.Identity.Infrastructure;
 
@@ -31,6 +32,11 @@ public sealed class JwtTokenService : IJwtTokenService
             new(ClaimTypes.Role, user.Role.ToString()),
         };
 
+        foreach (var perm in Permissions.ForRole(user.Role))
+        {
+            claims.Add(new Claim(ClaimsPrincipalExtensions.PermissionClaimType, perm));
+        }
+
         var token = new JwtSecurityToken(
             issuer: _options.Issuer,
             audience: _options.Audience,
@@ -43,4 +49,3 @@ public sealed class JwtTokenService : IJwtTokenService
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 }
-

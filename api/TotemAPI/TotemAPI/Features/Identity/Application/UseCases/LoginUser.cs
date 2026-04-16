@@ -48,7 +48,7 @@ public sealed class LoginUser
         if (!_passwordHasher.Verify(password, user.PasswordHash)) throw new InvalidOperationException("Credenciais inválidas.");
 
         var token = _tokenService.CreateToken(user);
-        return new AuthResult(user.TenantId, user.Id, user.Email, user.Role, token);
+        var permissions = Permissions.ForRole(user.Role);
+        return new AuthResult(user.TenantId, user.Id, user.Email, user.Role, permissions, token);
     }
 }
-

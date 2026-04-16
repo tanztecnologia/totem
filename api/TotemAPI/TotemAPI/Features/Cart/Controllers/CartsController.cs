@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TotemAPI.Features.Cart.Application.UseCases;
 using TotemAPI.Features.Identity.Domain;
+using TotemAPI.Infrastructure.Auth;
 
 namespace TotemAPI.Features.Cart.Controllers;
 
@@ -157,10 +158,7 @@ public sealed class CartsController : ControllerBase
 
     private bool CanReadCart()
     {
-        return User.IsInRole(UserRole.Admin.ToString())
-            || User.IsInRole(UserRole.Staff.ToString())
-            || User.IsInRole(UserRole.Totem.ToString())
-            || User.IsInRole(UserRole.Waiter.ToString());
+        return User.HasPermission(Permissions.CartRead);
     }
 
     private bool TryGetTenantId(out Guid tenantId)

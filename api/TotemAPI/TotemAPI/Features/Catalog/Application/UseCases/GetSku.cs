@@ -20,6 +20,43 @@ public sealed class GetSku
 
         var sku = await _skus.GetByIdAsync(query.TenantId, query.SkuId, ct);
         if (sku is null) return null;
-        return new SkuResult(sku.Id, sku.TenantId, sku.CategoryCode, sku.Code, sku.Name, sku.PriceCents, sku.AveragePrepSeconds, sku.ImageUrl, sku.IsActive);
+        return new SkuResult(
+            Id: sku.Id,
+            TenantId: sku.TenantId,
+            CategoryCode: sku.CategoryCode,
+            Code: sku.Code,
+            Name: sku.Name,
+            PriceCents: sku.PriceCents,
+            AveragePrepSeconds: sku.AveragePrepSeconds,
+            ImageUrl: sku.ImageUrl,
+            NfeCProd: sku.NfeCProd,
+            NfeCEan: sku.NfeCEan,
+            NfeCfop: sku.NfeCfop,
+            NfeUCom: sku.NfeUCom,
+            NfeQCom: sku.NfeQCom,
+            NfeVUnCom: sku.NfeVUnCom,
+            NfeVProd: sku.NfeVProd,
+            NfeCEanTrib: sku.NfeCEanTrib,
+            NfeUTrib: sku.NfeUTrib,
+            NfeQTrib: sku.NfeQTrib,
+            NfeVUnTrib: sku.NfeVUnTrib,
+            NfeIcmsOrig: sku.NfeIcmsOrig,
+            NfeIcmsCst: sku.NfeIcmsCst,
+            NfeIcmsModBc: sku.NfeIcmsModBc,
+            NfeIcmsVBc: sku.NfeIcmsVBc,
+            NfeIcmsPIcms: sku.NfeIcmsPIcms,
+            NfeIcmsVIcms: sku.NfeIcmsVIcms,
+            NfePisCst: sku.NfePisCst,
+            NfePisVBc: sku.NfePisVBc,
+            NfePisPPis: sku.NfePisPPis,
+            NfePisVPis: sku.NfePisVPis,
+            NfeCofinsCst: sku.NfeCofinsCst,
+            NfeCofinsVBc: sku.NfeCofinsVBc,
+            NfeCofinsPCofins: sku.NfeCofinsPCofins,
+            NfeCofinsVCofins: sku.NfeCofinsVCofins,
+            StockBaseUnit: sku.StockBaseUnit,
+            StockOnHandBaseQty: sku.StockOnHandBaseQty,
+            IsActive: sku.IsActive
+        );
     }
 }

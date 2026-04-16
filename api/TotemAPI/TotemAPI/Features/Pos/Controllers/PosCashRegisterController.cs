@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TotemAPI.Features.Identity.Domain;
 using TotemAPI.Features.Pos.Application.UseCases;
+using TotemAPI.Infrastructure.Auth;
 
 namespace TotemAPI.Features.Pos.Controllers;
 
@@ -93,9 +94,7 @@ public sealed class PosCashRegisterController : ControllerBase
 
     private bool CanUsePos()
     {
-        return User.IsInRole(UserRole.Admin.ToString())
-            || User.IsInRole(UserRole.Staff.ToString())
-            || User.IsInRole(UserRole.Pdv.ToString());
+        return User.HasPermission(Permissions.PosRead) || User.HasPermission(Permissions.PosWrite);
     }
 
     private bool TryGetTenantId(out Guid tenantId)
@@ -116,4 +115,3 @@ public sealed class PosCashRegisterController : ControllerBase
 public sealed record OpenCashRegisterShiftRequest(int OpeningCashCents);
 
 public sealed record CloseCashRegisterShiftRequest(int ClosingCashCents);
-
