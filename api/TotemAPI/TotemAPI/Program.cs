@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.Options;
+using OpenTelemetry.Exporter;
+using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using TotemAPI.Infrastructure.Logging;
@@ -30,6 +32,14 @@ using TotemAPI.Features.Pos.Application.UseCases;
 using TotemAPI.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Logging.ClearProviders();
+builder.Logging.AddProvider(new JsonLineLoggerProvider(Console.WriteLine));
+var logFilePath = builder.Configuration["Logging:File:Path"];
+if (!string.IsNullOrWhiteSpace(logFilePath))
+{
+    builder.Logging.AddProvider(new JsonFileLoggerProvider(logFilePath));
+}
 
 // Add services to the container.
 
@@ -181,8 +191,19 @@ builder.Services.AddOpenTelemetry()
 
         if (builder.Environment.IsDevelopment())
         {
-            tracing.AddConsoleExporter();
+            var consoleOtel = builder.Configuration.GetValue<bool>("Otel:ConsoleExporter");
+            if (consoleOtel)
+            {
+                tracing.AddConsoleExporter();
+            }
         }
+    })
+    .WithMetrics(metrics =>
+    {
+        metrics
+            .AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation()
+            .AddPrometheusExporter();
     });
 
 var app = builder.Build();
@@ -340,6 +361,21 @@ app.UseAuthentication();
 app.Use(
     async (context, next) =>
     {
+        var tenantId = context.User.FindFirstValue("tenant_id") ?? "-";
+        var userId =
+            context.User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? context.User.FindFirstValue("sub")
+            ?? "-";
+
+        using (app.Logger.BeginScope(new Dictionary<string, object?> { ["tenant_id"] = tenantId, ["user_id"] = userId }))
+        {
+            await next();
+        }
+    }
+);
+app.Use(
+    async (context, next) =>
+    {
         var sw = Stopwatch.StartNew();
         try
         {
@@ -379,6 +415,8 @@ app.Use(
     }
 );
 app.UseAuthorization();
+
+app.MapPrometheusScrapingEndpoint("/metrics");
 
 app.MapControllers();
 

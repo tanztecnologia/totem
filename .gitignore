@@ -78,6 +78,10 @@ totem.local.db-wal
 # Env (local)
 .env
 
+/.container_ips
+/logs/
+/data/
+
 
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
@@ -120,3 +124,4 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+data/loki/wal/*

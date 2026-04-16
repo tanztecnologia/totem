@@ -92,9 +92,297 @@
     {
       "key": "cursorOrderId",
       "value": ""
+    },
+    {
+      "key": "flowSkuCode",
+      "value": "00010"
+    },
+    {
+      "key": "flowQuantity",
+      "value": "1"
+    },
+    {
+      "key": "flowFulfillment",
+      "value": "TakeAway"
+    },
+    {
+      "key": "flowPaymentMethod",
+      "value": "Pix"
     }
   ],
   "item": [
+    {
+      "name": "Flow - Checkout (E2E)",
+      "item": [
+        {
+          "name": "1) Login (Totem)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const json = pm.response.json();",
+                  "  if (json && json.token) { pm.collectionVariables.set('token', json.token); pm.environment.set('token', json.token); }",
+                  "  if (json && json.tenantId) { pm.collectionVariables.set('tenantId', json.tenantId); pm.environment.set('tenantId', json.tenantId); }",
+                  "  if (json && json.userId) { pm.collectionVariables.set('userId', json.userId); pm.environment.set('userId', json.userId); }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tenantName\": \"{{tenantName}}\",\n  \"email\": \"{{totemEmail}}\",\n  \"password\": \"{{totemPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "2) Get SKU (by code)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const json = pm.response.json();",
+                  "  if (json && json.id) { pm.collectionVariables.set('skuId', json.id); pm.environment.set('skuId', json.id); }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/skus/by-code?code={{flowSkuCode}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "skus",
+                "by-code"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "{{flowSkuCode}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "3) Create Cart",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const json = pm.response.json();",
+                  "  if (json && json.id) { pm.collectionVariables.set('cartId', json.id); pm.environment.set('cartId', json.id); }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/carts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "carts"
+              ]
+            }
+          }
+        },
+        {
+          "name": "4) Add Cart Item",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"skuId\": \"{{skuId}}\",\n  \"quantity\": {{flowQuantity}}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/carts/{{cartId}}/items",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "carts",
+                "{{cartId}}",
+                "items"
+              ]
+            }
+          }
+        },
+        {
+          "name": "5) Start Checkout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const json = pm.response.json();",
+                  "  if (json && json.orderId) { pm.collectionVariables.set('orderId', json.orderId); pm.environment.set('orderId', json.orderId); }",
+                  "  if (json && json.payment && json.payment.id) { pm.collectionVariables.set('paymentId', json.payment.id); pm.environment.set('paymentId', json.payment.id); }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cartId\": \"{{cartId}}\",\n  \"fulfillment\": \"{{flowFulfillment}}\",\n  \"paymentMethod\": \"{{flowPaymentMethod}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/checkout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "checkout"
+              ]
+            }
+          }
+        },
+        {
+          "name": "6) Confirm Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/checkout/payments/{{paymentId}}/confirm",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "checkout",
+                "payments",
+                "{{paymentId}}",
+                "confirm"
+              ]
+            }
+          }
+        },
+        {
+          "name": "7) Get Order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('orderId set', function () {",
+                  "  pm.expect(pm.collectionVariables.get('orderId')).to.not.equal('');",
+                  "});",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const json = pm.response.json();",
+                  "  pm.test('order status is Paid', function () {",
+                  "    pm.expect(json.status).to.equal('Paid');",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/checkout/orders/{{orderId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "checkout",
+                "orders",
+                "{{orderId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
     {
       "name": "Auth",
       "item": [
