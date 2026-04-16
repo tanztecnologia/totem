@@ -113,3 +113,18 @@ Para o TotemAPI escrever logs em JSON lines e o Fluent Bit enviar ao Loki:
 Otel__Endpoint=http://localhost:4317
 Logging__File__Path=logs/totemapi.jsonl
 ```
+
+## LocalStack (AWS local)
+
+O `docker compose` inclui um serviço `localstack` com:
+- `s3` (bucket)
+- `sqs`
+- `sns`
+- `rds` (habilitado; a emulação pode depender do plano/cobertura do LocalStack)
+
+Porta:
+- `4566` (endpoint único)
+
+Bootstrap automático:
+- `observability/localstack/init/01-bootstrap.sh`
+- Cria: bucket `totem-local-bucket`, fila `totem-events-queue`, tópico `totem-events-topic` e tenta criar uma instância RDS de teste.

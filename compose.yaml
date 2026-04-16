@@ -5,6 +5,7 @@ services:
       COLLECTOR_OTLP_ENABLED: "true"
     ports:
       - "4317:4317"
+      - "4318:4318"
     restart: unless-stopped
 
   loki:
@@ -77,6 +78,13 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       Otel__Endpoint: http://jaeger:4317
       ConnectionStrings__MySql: Server=mysql;Port=3306;Database=totem;User=totem;Password=totem;
+      S3__Bucket: totem-local-bucket
+      S3__Region: us-east-1
+      S3__AccessKey: test
+      S3__SecretKey: test
+      S3__ServiceUrl: http://localstack:4566
+      S3__PublicBaseUrl: http://localhost:4566
+      S3__ForcePathStyle: "true"
       Jwt__Issuer: TotemAPI
       Jwt__Audience: TotemClients
       Jwt__Key: super-secret-development-key-change-me
@@ -92,6 +100,9 @@ services:
       mysql:
         condition: service_healthy
         required: true
+      localstack:
+        condition: service_started
+        required: true
     logging:
       driver: fluentd
       options:
@@ -106,6 +117,20 @@ services:
       - "9090:9090"
     volumes:
       - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    restart: unless-stopped
+
+  localstack:
+    image: localstack/localstack:latest
+    environment:
+      SERVICES: rds,sqs,sns,s3
+      AWS_DEFAULT_REGION: us-east-1
+      EDGE_PORT: 4566
+      DEBUG: "0"
+    ports:
+      - "4566:4566"
+    volumes:
+      - ./data/localstack:/var/lib/localstack
+      - ./observability/localstack/init:/etc/localstack/init/ready.d:ro
     restart: unless-stopped
 
   admin-web:

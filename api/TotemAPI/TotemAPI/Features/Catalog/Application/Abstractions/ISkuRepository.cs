@@ -12,6 +12,10 @@ public interface ISkuRepository
     Task ReplaceStockConsumptionsAsync(Guid tenantId, Guid skuId, IReadOnlyList<SkuStockConsumption> items, CancellationToken ct);
     Task<SkuStockLedgerEntry> AddStockLedgerEntryAsync(SkuStockLedgerEntry entry, CancellationToken ct);
     Task<IReadOnlyList<SkuStockLedgerEntry>> ListStockLedgerAsync(Guid tenantId, Guid skuId, int limit, DateTimeOffset? cursorCreatedAt, Guid? cursorId, CancellationToken ct);
+    Task<IReadOnlyList<SkuImage>> ListImagesAsync(Guid tenantId, Guid skuId, CancellationToken ct);
+    Task<int> CountImagesAsync(Guid tenantId, Guid skuId, CancellationToken ct);
+    Task AddImageAsync(SkuImage image, CancellationToken ct);
+    Task<SkuImage?> DeleteImageAsync(Guid tenantId, Guid skuId, Guid imageId, CancellationToken ct);
     Task<SkuSearchPageSnapshot> SearchPageAsync(
         Guid tenantId,
         string? query,

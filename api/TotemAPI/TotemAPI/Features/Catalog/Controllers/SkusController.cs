@@ -322,6 +322,87 @@ public sealed class SkusController : ControllerBase
         }
     }
 
+    [HttpGet("{id:guid}/images")]
+    public async Task<ActionResult<IReadOnlyList<SkuImageResult>>> ListImages(
+        [FromServices] ListSkuImages listSkuImages,
+        [FromRoute] Guid id,
+        CancellationToken ct
+    )
+    {
+        if (!TryGetTenantId(out var tenantId)) return Unauthorized();
+        if (!CanReadSkus()) return Forbid();
+
+        try
+        {
+            var result = await listSkuImages.HandleAsync(new ListSkuImagesQuery(tenantId, id), ct);
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpPost("{id:guid}/images")]
+    [RequestSizeLimit(10 * 1024 * 1024)]
+    public async Task<ActionResult<SkuImageResult>> UploadImage(
+        [FromServices] UploadSkuImage uploadSkuImage,
+        [FromRoute] Guid id,
+        [FromForm] UploadSkuImageRequest request,
+        CancellationToken ct
+    )
+    {
+        if (!TryGetTenantId(out var tenantId)) return Unauthorized();
+        if (!CanWriteSkus()) return Forbid();
+        if (request.File is null || request.File.Length == 0) return BadRequest(new { error = "Arquivo inválido." });
+
+        try
+        {
+            await using var stream = request.File.OpenReadStream();
+            var result = await uploadSkuImage.HandleAsync(
+                new UploadSkuImageCommand(
+                    tenantId,
+                    id,
+                    request.File.FileName,
+                    request.File.ContentType ?? "application/octet-stream",
+                    stream
+                ),
+                ct
+            );
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { error = ex.Message });
+        }
+    }
+
+    [HttpDelete("{id:guid}/images/{imageId:guid}")]
+    public async Task<IActionResult> DeleteImage(
+        [FromServices] DeleteSkuImage deleteSkuImage,
+        [FromRoute] Guid id,
+        [FromRoute] Guid imageId,
+        CancellationToken ct
+    )
+    {
+        if (!TryGetTenantId(out var tenantId)) return Unauthorized();
+        if (!CanWriteSkus()) return Forbid();
+
+        try
+        {
+            var deleted = await deleteSkuImage.HandleAsync(new DeleteSkuImageCommand(tenantId, id, imageId), ct);
+            return deleted ? NoContent() : NotFound();
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
     private bool CanReadSkus()
     {
         return User.HasPermission(Permissions.CatalogRead);
@@ -381,3 +462,5 @@ public sealed record AddSkuStockEntryRequest(
     string Unit,
     string? Notes = null
 );
+
+public sealed record UploadSkuImageRequest(IFormFile File);

@@ -31,6 +31,7 @@ using TotemAPI.Features.Kitchen.Application.Abstractions;
 using TotemAPI.Features.Pos.Application.Abstractions;
 using TotemAPI.Features.Pos.Application.UseCases;
 using TotemAPI.Infrastructure.Persistence;
+using TotemAPI.Infrastructure.Storage;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -55,6 +56,7 @@ builder.Services.AddOpenApi();
 
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 builder.Services.Configure<TefApiOptions>(builder.Configuration.GetSection(TefApiOptions.SectionName));
+builder.Services.Configure<S3Options>(builder.Configuration.GetSection(S3Options.SectionName));
 
 builder.Services.AddCors(options =>
 {
@@ -99,6 +101,7 @@ builder.Services.AddScoped<ICartRepository, EfCartRepository>();
 builder.Services.AddScoped<IKitchenSlaRepository, EfKitchenSlaRepository>();
 builder.Services.AddScoped<ICashRegisterRepository, EfCashRegisterRepository>();
 builder.Services.AddScoped<IDashboardRepository, EfDashboardRepository>();
+builder.Services.AddSingleton<ISkuImageStorage, S3SkuImageStorage>();
 builder.Services.AddSingleton<ITefPaymentService>(sp =>
 {
     var options = sp.GetRequiredService<IOptions<TefApiOptions>>().Value;
@@ -124,6 +127,9 @@ builder.Services.AddScoped<AddSkuStockEntry>();
 builder.Services.AddScoped<ListSkuStockConsumptions>();
 builder.Services.AddScoped<ReplaceSkuStockConsumptions>();
 builder.Services.AddScoped<ListSkuStockLedger>();
+builder.Services.AddScoped<ListSkuImages>();
+builder.Services.AddScoped<UploadSkuImage>();
+builder.Services.AddScoped<DeleteSkuImage>();
 builder.Services.AddScoped<CreateCategory>();
 builder.Services.AddScoped<ListCategories>();
 builder.Services.AddScoped<GetCategoryByCode>();
@@ -232,12 +238,14 @@ using (var scope = app.Services.CreateScope())
     if (providerName.Contains("MySql", StringComparison.OrdinalIgnoreCase))
     {
         await db.Database.EnsureCreatedAsync();
+        await SchemaBootstrapper.EnsureSkuImagesTableAsync(db, CancellationToken.None);
         var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
         await TanzMySqlSeeder.SeedAsync(db, passwordHasher, CancellationToken.None);
     }
     else
     {
         db.Database.Migrate();
+        await SchemaBootstrapper.EnsureSkuImagesTableAsync(db, CancellationToken.None);
     }
 }
 

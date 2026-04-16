@@ -9,6 +9,7 @@ public sealed class InMemorySkuRepository : ISkuRepository
     private readonly ConcurrentDictionary<Guid, Sku> _byId = new();
     private readonly ConcurrentDictionary<(Guid TenantId, string Code), Guid> _idByCode = new();
     private readonly ConcurrentDictionary<(Guid TenantId, Guid SkuId), ConcurrentDictionary<Guid, SkuStockConsumption>> _stockConsumptions = new();
+    private readonly ConcurrentDictionary<(Guid TenantId, Guid SkuId), ConcurrentDictionary<Guid, SkuImage>> _images = new();
     private readonly List<SkuStockLedgerEntry> _stockLedger = new();
 
     public Task<IReadOnlyList<Sku>> ListAsync(Guid tenantId, CancellationToken ct)
@@ -75,6 +76,43 @@ public sealed class InMemorySkuRepository : ISkuRepository
 
         _stockConsumptions[(tenantId, skuId)] = next;
         return Task.CompletedTask;
+    }
+
+    public Task<IReadOnlyList<SkuImage>> ListImagesAsync(Guid tenantId, Guid skuId, CancellationToken ct)
+    {
+        if (!_images.TryGetValue((tenantId, skuId), out var map))
+            return Task.FromResult<IReadOnlyList<SkuImage>>(Array.Empty<SkuImage>());
+
+        var list = map.Values
+            .OrderBy(x => x.CreatedAt)
+            .ThenBy(x => x.Id)
+            .ToList()
+            .AsReadOnly();
+
+        return Task.FromResult<IReadOnlyList<SkuImage>>(list);
+    }
+
+    public Task<int> CountImagesAsync(Guid tenantId, Guid skuId, CancellationToken ct)
+    {
+        if (!_images.TryGetValue((tenantId, skuId), out var map))
+            return Task.FromResult(0);
+        return Task.FromResult(map.Count);
+    }
+
+    public Task AddImageAsync(SkuImage image, CancellationToken ct)
+    {
+        var map = _images.GetOrAdd((image.TenantId, image.SkuId), _ => new ConcurrentDictionary<Guid, SkuImage>());
+        if (!map.TryAdd(image.Id, image)) throw new InvalidOperationException("Imagem já cadastrada.");
+        return Task.CompletedTask;
+    }
+
+    public Task<SkuImage?> DeleteImageAsync(Guid tenantId, Guid skuId, Guid imageId, CancellationToken ct)
+    {
+        if (!_images.TryGetValue((tenantId, skuId), out var map))
+            return Task.FromResult<SkuImage?>(null);
+        if (!map.TryRemove(imageId, out var removed))
+            return Task.FromResult<SkuImage?>(null);
+        return Task.FromResult<SkuImage?>(removed);
     }
 
     public Task<SkuStockLedgerEntry> AddStockLedgerEntryAsync(SkuStockLedgerEntry entry, CancellationToken ct)
@@ -247,6 +285,7 @@ public sealed class InMemorySkuRepository : ISkuRepository
         _byId.TryRemove(skuId, out _);
         _idByCode.TryRemove((tenantId, NormalizeCode(sku.Code)), out _);
         _stockConsumptions.TryRemove((tenantId, skuId), out _);
+        _images.TryRemove((tenantId, skuId), out _);
         return Task.CompletedTask;
     }
 

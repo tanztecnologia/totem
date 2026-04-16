@@ -77,6 +77,50 @@ public sealed class EfSkuRepository : ISkuRepository
             .ToListAsync(ct);
     }
 
+    public async Task<IReadOnlyList<SkuImage>> ListImagesAsync(Guid tenantId, Guid skuId, CancellationToken ct)
+    {
+        return await _db.SkuImages
+            .AsNoTracking()
+            .Where(x => x.TenantId == tenantId && x.SkuId == skuId)
+            .OrderBy(x => x.CreatedAt)
+            .ThenBy(x => x.Id)
+            .Select(x => x.ToDomain())
+            .ToListAsync(ct);
+    }
+
+    public Task<int> CountImagesAsync(Guid tenantId, Guid skuId, CancellationToken ct)
+    {
+        return _db.SkuImages.CountAsync(x => x.TenantId == tenantId && x.SkuId == skuId, ct);
+    }
+
+    public async Task AddImageAsync(SkuImage image, CancellationToken ct)
+    {
+        _db.SkuImages.Add(new SkuImageRow
+        {
+            Id = image.Id,
+            TenantId = image.TenantId,
+            SkuId = image.SkuId,
+            S3Key = image.S3Key,
+            Url = image.Url,
+            CreatedAt = image.CreatedAt,
+        });
+
+        await _db.SaveChangesAsync(ct);
+    }
+
+    public async Task<SkuImage?> DeleteImageAsync(Guid tenantId, Guid skuId, Guid imageId, CancellationToken ct)
+    {
+        var row = await _db.SkuImages.SingleOrDefaultAsync(
+            x => x.TenantId == tenantId && x.SkuId == skuId && x.Id == imageId,
+            ct
+        );
+        if (row is null) return null;
+
+        _db.SkuImages.Remove(row);
+        await _db.SaveChangesAsync(ct);
+        return row.ToDomain();
+    }
+
     public async Task ReplaceStockConsumptionsAsync(
         Guid tenantId,
         Guid skuId,
@@ -353,6 +397,8 @@ public sealed class EfSkuRepository : ISkuRepository
     {
         var row = await _db.Skus.SingleOrDefaultAsync(x => x.Id == skuId && x.TenantId == tenantId, ct);
         if (row is null) return;
+        var images = await _db.SkuImages.Where(x => x.TenantId == tenantId && x.SkuId == skuId).ToListAsync(ct);
+        if (images.Count > 0) _db.SkuImages.RemoveRange(images);
         _db.Skus.Remove(row);
         await _db.SaveChangesAsync(ct);
     }

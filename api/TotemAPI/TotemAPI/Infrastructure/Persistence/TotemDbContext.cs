@@ -20,6 +20,7 @@ public sealed class TotemDbContext : DbContext
     public DbSet<UserRow> Users => Set<UserRow>();
     public DbSet<CategoryRow> Categories => Set<CategoryRow>();
     public DbSet<SkuRow> Skus => Set<SkuRow>();
+    public DbSet<SkuImageRow> SkuImages => Set<SkuImageRow>();
     public DbSet<SkuStockConsumptionRow> SkuStockConsumptions => Set<SkuStockConsumptionRow>();
     public DbSet<SkuStockLedgerRow> SkuStockLedger => Set<SkuStockLedgerRow>();
     public DbSet<OrderRow> Orders => Set<OrderRow>();
@@ -115,6 +116,19 @@ public sealed class TotemDbContext : DbContext
             b.HasIndex(x => x.TenantId);
             b.HasIndex(x => new { x.TenantId, x.SkuId });
             b.HasIndex(x => new { x.TenantId, x.SkuId, x.SourceSkuId }).IsUnique();
+        });
+
+        modelBuilder.Entity<SkuImageRow>(b =>
+        {
+            b.ToTable("sku_images");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.TenantId).IsRequired();
+            b.Property(x => x.SkuId).IsRequired();
+            b.Property(x => x.S3Key).IsRequired();
+            b.Property(x => x.Url).IsRequired();
+            b.Property(x => x.CreatedAt).IsRequired();
+            b.HasIndex(x => new { x.TenantId, x.SkuId });
+            b.HasIndex(x => new { x.TenantId, x.SkuId, x.CreatedAt });
         });
 
         modelBuilder.Entity<SkuStockLedgerRow>(b =>
@@ -361,6 +375,16 @@ public sealed class SkuStockConsumptionRow
     public decimal QuantityBase { get; set; }
 }
 
+public sealed class SkuImageRow
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid SkuId { get; set; }
+    public string S3Key { get; set; } = string.Empty;
+    public string Url { get; set; } = string.Empty;
+    public DateTimeOffset CreatedAt { get; set; }
+}
+
 public sealed class SkuStockLedgerRow
 {
     public Guid Id { get; set; }
@@ -543,6 +567,12 @@ internal static class SkuStockConsumptionMapping
             row.SourceSkuId,
             row.QuantityBase
         );
+}
+
+internal static class SkuImageMapping
+{
+    public static SkuImage ToDomain(this SkuImageRow row) =>
+        new(row.Id, row.TenantId, row.SkuId, row.S3Key, row.Url, row.CreatedAt);
 }
 
 internal static class SkuStockLedgerMapping

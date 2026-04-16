@@ -36,6 +36,15 @@ public sealed record SkuStockLedgerEntry(
     DateTimeOffset CreatedAt
 );
 
+public sealed record SkuImage(
+    Guid Id,
+    Guid TenantId,
+    Guid SkuId,
+    string S3Key,
+    string Url,
+    DateTimeOffset CreatedAt
+);
+
 public sealed record Sku(
     Guid Id,
     Guid TenantId,
