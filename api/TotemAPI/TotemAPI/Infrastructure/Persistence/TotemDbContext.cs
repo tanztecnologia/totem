@@ -21,6 +21,7 @@ public sealed class TotemDbContext : DbContext
     public DbSet<CategoryRow> Categories => Set<CategoryRow>();
     public DbSet<SkuRow> Skus => Set<SkuRow>();
     public DbSet<SkuStockConsumptionRow> SkuStockConsumptions => Set<SkuStockConsumptionRow>();
+    public DbSet<SkuStockLedgerRow> SkuStockLedger => Set<SkuStockLedgerRow>();
     public DbSet<OrderRow> Orders => Set<OrderRow>();
     public DbSet<OrderItemRow> OrderItems => Set<OrderItemRow>();
     public DbSet<PaymentRow> Payments => Set<PaymentRow>();
@@ -92,6 +93,7 @@ public sealed class TotemDbContext : DbContext
             b.Property(x => x.NfeCofinsVBc);
             b.Property(x => x.NfeCofinsPCofins);
             b.Property(x => x.NfeCofinsVCofins);
+            b.Property(x => x.TracksStock).IsRequired();
             b.Property(x => x.StockBaseUnit);
             b.Property(x => x.StockOnHandBaseQty);
             b.Property(x => x.IsActive).IsRequired();
@@ -113,6 +115,23 @@ public sealed class TotemDbContext : DbContext
             b.HasIndex(x => x.TenantId);
             b.HasIndex(x => new { x.TenantId, x.SkuId });
             b.HasIndex(x => new { x.TenantId, x.SkuId, x.SourceSkuId }).IsUnique();
+        });
+
+        modelBuilder.Entity<SkuStockLedgerRow>(b =>
+        {
+            b.ToTable("sku_stock_ledger");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.TenantId).IsRequired();
+            b.Property(x => x.SkuId).IsRequired();
+            b.Property(x => x.DeltaBaseQty).IsRequired();
+            b.Property(x => x.StockAfterBaseQty).IsRequired();
+            b.Property(x => x.OriginType).HasConversion<int>().IsRequired();
+            b.Property(x => x.OriginId);
+            b.Property(x => x.Notes);
+            b.Property(x => x.ActorUserId);
+            b.Property(x => x.CreatedAt).IsRequired();
+            b.HasIndex(x => new { x.TenantId, x.SkuId });
+            b.HasIndex(x => new { x.TenantId, x.SkuId, x.CreatedAt });
         });
 
         modelBuilder.Entity<CategoryRow>(b =>
@@ -325,6 +344,7 @@ public sealed class SkuRow
     public decimal? NfeCofinsVBc { get; set; }
     public decimal? NfeCofinsPCofins { get; set; }
     public decimal? NfeCofinsVCofins { get; set; }
+    public bool TracksStock { get; set; }
     public StockBaseUnit? StockBaseUnit { get; set; }
     public decimal? StockOnHandBaseQty { get; set; }
     public bool IsActive { get; set; }
@@ -339,6 +359,20 @@ public sealed class SkuStockConsumptionRow
     public Guid SkuId { get; set; }
     public Guid SourceSkuId { get; set; }
     public decimal QuantityBase { get; set; }
+}
+
+public sealed class SkuStockLedgerRow
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid SkuId { get; set; }
+    public decimal DeltaBaseQty { get; set; }
+    public decimal StockAfterBaseQty { get; set; }
+    public StockLedgerOriginType OriginType { get; set; }
+    public Guid? OriginId { get; set; }
+    public string? Notes { get; set; }
+    public Guid? ActorUserId { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
 }
 
 public sealed class OrderRow
@@ -488,6 +522,7 @@ internal static class SkuMapping
             row.NfeCofinsVBc,
             row.NfeCofinsPCofins,
             row.NfeCofinsVCofins,
+            row.TracksStock,
             row.StockBaseUnit,
             row.StockOnHandBaseQty,
             row.IsActive,
@@ -507,6 +542,23 @@ internal static class SkuStockConsumptionMapping
             row.SkuId,
             row.SourceSkuId,
             row.QuantityBase
+        );
+}
+
+internal static class SkuStockLedgerMapping
+{
+    public static SkuStockLedgerEntry ToDomain(this SkuStockLedgerRow row) =>
+        new(
+            row.Id,
+            row.TenantId,
+            row.SkuId,
+            row.DeltaBaseQty,
+            row.StockAfterBaseQty,
+            row.OriginType,
+            row.OriginId,
+            row.Notes,
+            row.ActorUserId,
+            row.CreatedAt
         );
 }
 

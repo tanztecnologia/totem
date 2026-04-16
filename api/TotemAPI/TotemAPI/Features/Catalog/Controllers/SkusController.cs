@@ -5,6 +5,7 @@ using TotemAPI.Features.Catalog.Application.UseCases;
 using TotemAPI.Features.Catalog.Domain;
 using TotemAPI.Features.Identity.Domain;
 using TotemAPI.Infrastructure.Auth;
+using System.IdentityModel.Tokens.Jwt;
 
 namespace TotemAPI.Features.Catalog.Controllers;
 
@@ -127,9 +128,11 @@ public sealed class SkusController : ControllerBase
                     PriceCents: request.PriceCents,
                     AveragePrepSeconds: request.AveragePrepSeconds,
                     ImageUrl: request.ImageUrl,
+                    TracksStock: request.TracksStock,
                     StockBaseUnit: request.StockBaseUnit,
                     StockOnHandBaseQty: request.StockOnHandBaseQty,
-                    IsActive: request.IsActive
+                    IsActive: request.IsActive,
+                    ActorUserId: TryGetUserId(out var actorId) ? actorId : null
                 ),
                 ct
             );
@@ -167,9 +170,11 @@ public sealed class SkusController : ControllerBase
                     PriceCents: request.PriceCents,
                     AveragePrepSeconds: request.AveragePrepSeconds,
                     ImageUrl: request.ImageUrl,
+                    TracksStock: request.TracksStock,
                     StockBaseUnit: request.StockBaseUnit,
                     StockOnHandBaseQty: request.StockOnHandBaseQty,
-                    IsActive: request.IsActive
+                    IsActive: request.IsActive,
+                    ActorUserId: TryGetUserId(out var actorId) ? actorId : null
                 ),
                 ct
             );
@@ -252,8 +257,9 @@ public sealed class SkusController : ControllerBase
 
         try
         {
+            var actorUserId = TryGetUserId(out var uid) ? uid : (Guid?)null;
             var result = await addSkuStockEntry.HandleAsync(
-                new AddSkuStockEntryCommand(tenantId, id, request.Quantity, request.Unit),
+                new AddSkuStockEntryCommand(tenantId, id, request.Quantity, request.Unit, actorUserId, request.Notes),
                 ct
             );
             return result is null ? NotFound() : Ok(result);
@@ -265,6 +271,33 @@ public sealed class SkusController : ControllerBase
         catch (InvalidOperationException ex)
         {
             return Conflict(new { error = ex.Message });
+        }
+    }
+
+    [HttpGet("{id:guid}/stock/ledger")]
+    public async Task<ActionResult<IReadOnlyList<SkuStockLedgerEntryResult>>> ListStockLedger(
+        [FromServices] ListSkuStockLedger listSkuStockLedger,
+        [FromRoute] Guid id,
+        [FromQuery] int limit = 50,
+        [FromQuery] DateTimeOffset? cursorCreatedAt = null,
+        [FromQuery] Guid? cursorId = null,
+        CancellationToken ct = default
+    )
+    {
+        if (!TryGetTenantId(out var tenantId)) return Unauthorized();
+        if (!CanReadSkus()) return Forbid();
+
+        try
+        {
+            var result = await listSkuStockLedger.HandleAsync(
+                new ListSkuStockLedgerQuery(tenantId, id, limit, cursorCreatedAt, cursorId),
+                ct
+            );
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
         }
     }
 
@@ -300,6 +333,13 @@ public sealed class SkusController : ControllerBase
     }
 
 
+    private bool TryGetUserId(out Guid userId)
+    {
+        userId = default;
+        var raw = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+        return Guid.TryParse(raw, out userId);
+    }
+
     private bool TryGetTenantId(out Guid tenantId)
     {
         tenantId = default;
@@ -314,6 +354,7 @@ public sealed record CreateSkuRequest(
     int PriceCents,
     int? AveragePrepSeconds,
     string? ImageUrl,
+    bool? TracksStock,
     StockBaseUnit? StockBaseUnit,
     decimal? StockOnHandBaseQty,
     bool IsActive
@@ -325,6 +366,7 @@ public sealed record UpdateSkuRequest(
     int PriceCents,
     int? AveragePrepSeconds,
     string? ImageUrl,
+    bool? TracksStock,
     StockBaseUnit? StockBaseUnit,
     decimal? StockOnHandBaseQty,
     bool IsActive
@@ -336,5 +378,6 @@ public sealed record ReplaceSkuStockConsumptionsRequest(
 
 public sealed record AddSkuStockEntryRequest(
     decimal Quantity,
-    string Unit
+    string Unit,
+    string? Notes = null
 );

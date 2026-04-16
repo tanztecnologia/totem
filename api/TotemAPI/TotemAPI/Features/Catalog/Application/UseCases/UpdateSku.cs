@@ -11,9 +11,11 @@ public sealed record UpdateSkuCommand(
     int PriceCents,
     int? AveragePrepSeconds,
     string? ImageUrl,
+    bool? TracksStock,
     StockBaseUnit? StockBaseUnit,
     decimal? StockOnHandBaseQty,
-    bool IsActive
+    bool IsActive,
+    Guid? ActorUserId = null
 );
 
 public sealed class UpdateSku
@@ -48,13 +50,86 @@ public sealed class UpdateSku
         var category = await _categories.GetByCodeAsync(command.TenantId, categoryCode, ct);
         if (category is null) throw new InvalidOperationException("Categoria não encontrada.");
 
+        var nextTracksStock = command.TracksStock ?? current.TracksStock;
         var nextStockBaseUnit = command.StockBaseUnit ?? current.StockBaseUnit;
-        var nextStockOnHand = command.StockOnHandBaseQty ?? current.StockOnHandBaseQty;
-        if (command.StockBaseUnit is not null && command.StockOnHandBaseQty is null && current.StockBaseUnit != nextStockBaseUnit)
-            throw new ArgumentException("StockOnHandBaseQty é obrigatório quando StockBaseUnit for alterado.");
-        if (nextStockOnHand is not null && nextStockOnHand < 0) throw new ArgumentException("StockOnHandBaseQty inválido.");
-        if (nextStockBaseUnit is null && nextStockOnHand is not null)
-            throw new ArgumentException("StockBaseUnit é obrigatório quando StockOnHandBaseQty for informado.");
+
+        decimal? stockOnHandForRow;
+        SkuStockLedgerEntry? ledgerEntry = null;
+        var now = DateTimeOffset.UtcNow;
+
+        if (!nextTracksStock)
+        {
+            if (command.StockBaseUnit is not null || command.StockOnHandBaseQty is not null)
+                throw new ArgumentException("StockBaseUnit/StockOnHandBaseQty não devem ser informados quando TracksStock for false.");
+            nextStockBaseUnit = null;
+            stockOnHandForRow = null;
+        }
+        else
+        {
+            if (command.StockBaseUnit is not null && command.StockOnHandBaseQty is null && current.StockBaseUnit != nextStockBaseUnit)
+                throw new ArgumentException("StockOnHandBaseQty é obrigatório quando StockBaseUnit for alterado.");
+            if (command.StockOnHandBaseQty is not null && command.StockOnHandBaseQty < 0)
+                throw new ArgumentException("StockOnHandBaseQty inválido.");
+            if (nextStockBaseUnit is null && command.StockOnHandBaseQty is not null)
+                throw new ArgumentException("StockBaseUnit é obrigatório quando StockOnHandBaseQty for informado.");
+
+            var wasTracking = current.TracksStock && current.StockBaseUnit is not null;
+            var unitChanged = wasTracking && command.StockBaseUnit is not null && command.StockBaseUnit != current.StockBaseUnit;
+            var firstEnable = !current.TracksStock && nextTracksStock;
+
+            if (firstEnable || unitChanged)
+            {
+                // Reinicialização: zera no row para o ledger aplicar o delta correto
+                stockOnHandForRow = nextStockBaseUnit is not null ? 0m : null;
+                var providedQty = command.StockOnHandBaseQty ?? 0m;
+                if (nextStockBaseUnit is not null && providedQty > 0)
+                {
+                    ledgerEntry = new SkuStockLedgerEntry(
+                        Id: Guid.NewGuid(),
+                        TenantId: current.TenantId,
+                        SkuId: current.Id,
+                        DeltaBaseQty: providedQty,
+                        StockAfterBaseQty: 0,
+                        OriginType: firstEnable ? StockLedgerOriginType.InitialStock : StockLedgerOriginType.ManualAdjustment,
+                        OriginId: null,
+                        Notes: firstEnable ? "Estoque inicial (via atualização de SKU)" : "Ajuste por mudança de unidade de estoque",
+                        ActorUserId: command.ActorUserId,
+                        CreatedAt: now
+                    );
+                }
+            }
+            else if (wasTracking && command.StockOnHandBaseQty is not null &&
+                     command.StockOnHandBaseQty != current.StockOnHandBaseQty)
+            {
+                // Ajuste manual de quantidade com mesma unidade
+                var delta = command.StockOnHandBaseQty.Value - (current.StockOnHandBaseQty ?? 0m);
+                stockOnHandForRow = current.StockOnHandBaseQty; // mantém; ledger atualiza
+                if (delta != 0)
+                {
+                    ledgerEntry = new SkuStockLedgerEntry(
+                        Id: Guid.NewGuid(),
+                        TenantId: current.TenantId,
+                        SkuId: current.Id,
+                        DeltaBaseQty: delta,
+                        StockAfterBaseQty: 0,
+                        OriginType: StockLedgerOriginType.ManualAdjustment,
+                        OriginId: null,
+                        Notes: "Ajuste manual de estoque",
+                        ActorUserId: command.ActorUserId,
+                        CreatedAt: now
+                    );
+                }
+                else
+                {
+                    stockOnHandForRow = current.StockOnHandBaseQty;
+                }
+            }
+            else
+            {
+                // Sem mudança de quantidade — preserva o valor projetado
+                stockOnHandForRow = current.StockOnHandBaseQty;
+            }
+        }
 
         var updated = new Sku(
             Id: current.Id,
@@ -90,51 +165,57 @@ public sealed class UpdateSku
             NfeCofinsVBc: current.NfeCofinsVBc,
             NfeCofinsPCofins: current.NfeCofinsPCofins,
             NfeCofinsVCofins: current.NfeCofinsVCofins,
+            TracksStock: nextTracksStock,
             StockBaseUnit: nextStockBaseUnit,
-            StockOnHandBaseQty: nextStockOnHand,
+            StockOnHandBaseQty: stockOnHandForRow,
             IsActive: command.IsActive,
             CreatedAt: current.CreatedAt,
-            UpdatedAt: DateTimeOffset.UtcNow
+            UpdatedAt: now
         );
 
         await _skus.UpdateAsync(updated, ct);
+        if (ledgerEntry is not null)
+            await _skus.AddStockLedgerEntryAsync(ledgerEntry, ct);
+
+        var final = await _skus.GetByIdAsync(command.TenantId, command.SkuId, ct) ?? updated;
         return new SkuResult(
-            Id: updated.Id,
-            TenantId: updated.TenantId,
-            CategoryCode: updated.CategoryCode,
-            Code: updated.Code,
-            Name: updated.Name,
-            PriceCents: updated.PriceCents,
-            AveragePrepSeconds: updated.AveragePrepSeconds,
-            ImageUrl: updated.ImageUrl,
-            NfeCProd: updated.NfeCProd,
-            NfeCEan: updated.NfeCEan,
-            NfeCfop: updated.NfeCfop,
-            NfeUCom: updated.NfeUCom,
-            NfeQCom: updated.NfeQCom,
-            NfeVUnCom: updated.NfeVUnCom,
-            NfeVProd: updated.NfeVProd,
-            NfeCEanTrib: updated.NfeCEanTrib,
-            NfeUTrib: updated.NfeUTrib,
-            NfeQTrib: updated.NfeQTrib,
-            NfeVUnTrib: updated.NfeVUnTrib,
-            NfeIcmsOrig: updated.NfeIcmsOrig,
-            NfeIcmsCst: updated.NfeIcmsCst,
-            NfeIcmsModBc: updated.NfeIcmsModBc,
-            NfeIcmsVBc: updated.NfeIcmsVBc,
-            NfeIcmsPIcms: updated.NfeIcmsPIcms,
-            NfeIcmsVIcms: updated.NfeIcmsVIcms,
-            NfePisCst: updated.NfePisCst,
-            NfePisVBc: updated.NfePisVBc,
-            NfePisPPis: updated.NfePisPPis,
-            NfePisVPis: updated.NfePisVPis,
-            NfeCofinsCst: updated.NfeCofinsCst,
-            NfeCofinsVBc: updated.NfeCofinsVBc,
-            NfeCofinsPCofins: updated.NfeCofinsPCofins,
-            NfeCofinsVCofins: updated.NfeCofinsVCofins,
-            StockBaseUnit: updated.StockBaseUnit,
-            StockOnHandBaseQty: updated.StockOnHandBaseQty,
-            IsActive: updated.IsActive
+            Id: final.Id,
+            TenantId: final.TenantId,
+            CategoryCode: final.CategoryCode,
+            Code: final.Code,
+            Name: final.Name,
+            PriceCents: final.PriceCents,
+            AveragePrepSeconds: final.AveragePrepSeconds,
+            ImageUrl: final.ImageUrl,
+            NfeCProd: final.NfeCProd,
+            NfeCEan: final.NfeCEan,
+            NfeCfop: final.NfeCfop,
+            NfeUCom: final.NfeUCom,
+            NfeQCom: final.NfeQCom,
+            NfeVUnCom: final.NfeVUnCom,
+            NfeVProd: final.NfeVProd,
+            NfeCEanTrib: final.NfeCEanTrib,
+            NfeUTrib: final.NfeUTrib,
+            NfeQTrib: final.NfeQTrib,
+            NfeVUnTrib: final.NfeVUnTrib,
+            NfeIcmsOrig: final.NfeIcmsOrig,
+            NfeIcmsCst: final.NfeIcmsCst,
+            NfeIcmsModBc: final.NfeIcmsModBc,
+            NfeIcmsVBc: final.NfeIcmsVBc,
+            NfeIcmsPIcms: final.NfeIcmsPIcms,
+            NfeIcmsVIcms: final.NfeIcmsVIcms,
+            NfePisCst: final.NfePisCst,
+            NfePisVBc: final.NfePisVBc,
+            NfePisPPis: final.NfePisPPis,
+            NfePisVPis: final.NfePisVPis,
+            NfeCofinsCst: final.NfeCofinsCst,
+            NfeCofinsVBc: final.NfeCofinsVBc,
+            NfeCofinsPCofins: final.NfeCofinsPCofins,
+            NfeCofinsVCofins: final.NfeCofinsVCofins,
+            TracksStock: final.TracksStock,
+            StockBaseUnit: final.StockBaseUnit,
+            StockOnHandBaseQty: final.StockOnHandBaseQty,
+            IsActive: final.IsActive
         );
     }
 }

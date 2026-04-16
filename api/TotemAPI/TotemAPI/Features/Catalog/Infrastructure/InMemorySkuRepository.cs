@@ -9,6 +9,7 @@ public sealed class InMemorySkuRepository : ISkuRepository
     private readonly ConcurrentDictionary<Guid, Sku> _byId = new();
     private readonly ConcurrentDictionary<(Guid TenantId, string Code), Guid> _idByCode = new();
     private readonly ConcurrentDictionary<(Guid TenantId, Guid SkuId), ConcurrentDictionary<Guid, SkuStockConsumption>> _stockConsumptions = new();
+    private readonly List<SkuStockLedgerEntry> _stockLedger = new();
 
     public Task<IReadOnlyList<Sku>> ListAsync(Guid tenantId, CancellationToken ct)
     {
@@ -76,23 +77,65 @@ public sealed class InMemorySkuRepository : ISkuRepository
         return Task.CompletedTask;
     }
 
-    public Task ApplyStockDeltaAsync(Guid tenantId, Guid skuId, decimal deltaBaseQty, CancellationToken ct)
+    public Task<SkuStockLedgerEntry> AddStockLedgerEntryAsync(SkuStockLedgerEntry entry, CancellationToken ct)
     {
-        if (tenantId == Guid.Empty) throw new ArgumentException("TenantId inválido.");
-        if (skuId == Guid.Empty) throw new ArgumentException("SkuId inválido.");
-        if (deltaBaseQty == 0) return Task.CompletedTask;
+        if (entry.TenantId == Guid.Empty) throw new ArgumentException("TenantId inválido.");
+        if (entry.SkuId == Guid.Empty) throw new ArgumentException("SkuId inválido.");
+        if (entry.DeltaBaseQty == 0) throw new ArgumentException("DeltaBaseQty não pode ser zero.");
 
-        if (!_byId.TryGetValue(skuId, out var sku) || sku.TenantId != tenantId)
+        if (!_byId.TryGetValue(entry.SkuId, out var sku) || sku.TenantId != entry.TenantId)
             throw new InvalidOperationException("SKU não encontrado.");
 
+        if (!sku.TracksStock) throw new InvalidOperationException("SKU não controla estoque próprio.");
         if (sku.StockBaseUnit is null || sku.StockOnHandBaseQty is null)
             throw new InvalidOperationException("Controle de estoque não configurado para o SKU.");
 
-        var next = sku.StockOnHandBaseQty.Value + deltaBaseQty;
-        if (next < 0) throw new InvalidOperationException("Estoque insuficiente.");
+        var stockAfter = sku.StockOnHandBaseQty.Value + entry.DeltaBaseQty;
+        if (stockAfter < 0) throw new InvalidOperationException("Estoque insuficiente.");
 
-        _byId[skuId] = sku with { StockOnHandBaseQty = next, UpdatedAt = DateTimeOffset.UtcNow };
-        return Task.CompletedTask;
+        var persisted = entry with
+        {
+            Id = entry.Id == Guid.Empty ? Guid.NewGuid() : entry.Id,
+            StockAfterBaseQty = stockAfter,
+            CreatedAt = entry.CreatedAt == default ? DateTimeOffset.UtcNow : entry.CreatedAt,
+        };
+
+        _stockLedger.Add(persisted);
+        _byId[entry.SkuId] = sku with { StockOnHandBaseQty = stockAfter, UpdatedAt = persisted.CreatedAt };
+
+        return Task.FromResult(persisted);
+    }
+
+    public Task<IReadOnlyList<SkuStockLedgerEntry>> ListStockLedgerAsync(
+        Guid tenantId,
+        Guid skuId,
+        int limit,
+        DateTimeOffset? cursorCreatedAt,
+        Guid? cursorId,
+        CancellationToken ct
+    )
+    {
+        if (limit <= 0) return Task.FromResult<IReadOnlyList<SkuStockLedgerEntry>>(Array.Empty<SkuStockLedgerEntry>());
+        if (limit > 500) limit = 500;
+
+        var entries = _stockLedger
+            .Where(x => x.TenantId == tenantId && x.SkuId == skuId);
+
+        if (cursorCreatedAt is not null && cursorId is not null && cursorId != Guid.Empty)
+        {
+            entries = entries.Where(x =>
+                x.CreatedAt < cursorCreatedAt ||
+                (x.CreatedAt == cursorCreatedAt && x.Id.CompareTo(cursorId.Value) < 0));
+        }
+
+        var result = entries
+            .OrderByDescending(x => x.CreatedAt)
+            .ThenByDescending(x => x.Id)
+            .Take(limit)
+            .ToList()
+            .AsReadOnly();
+
+        return Task.FromResult<IReadOnlyList<SkuStockLedgerEntry>>(result);
     }
 
     public Task<SkuSearchPageSnapshot> SearchPageAsync(

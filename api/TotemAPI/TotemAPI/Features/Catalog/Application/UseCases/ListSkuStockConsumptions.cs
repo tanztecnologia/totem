@@ -22,10 +22,27 @@ public sealed class ListSkuStockConsumptions
         if (query.SkuId == Guid.Empty) throw new ArgumentException("SkuId inválido.");
 
         var list = await _skus.ListStockConsumptionsAsync(query.TenantId, query.SkuId, ct);
+        var sourceIds = list.Select(x => x.SourceSkuId).Distinct().ToList();
+        var codeById = new Dictionary<Guid, string>();
+        foreach (var id in sourceIds)
+        {
+            var source = await _skus.GetByIdAsync(query.TenantId, id, ct);
+            if (source is null) continue;
+            codeById[id] = source.Code;
+        }
+
         return list
-            .Select(x => new SkuStockConsumptionResult(x.Id, x.SkuId, x.SourceSkuId, string.Empty, x.QuantityBase))
+            .Select(
+                x =>
+                    new SkuStockConsumptionResult(
+                        x.Id,
+                        x.SkuId,
+                        x.SourceSkuId,
+                        codeById.TryGetValue(x.SourceSkuId, out var c) ? c : string.Empty,
+                        x.QuantityBase
+                    )
+            )
             .ToList()
             .AsReadOnly();
     }
 }
-

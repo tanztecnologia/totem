@@ -7,12 +7,33 @@ public enum StockBaseUnit
     Milliliter = 2
 }
 
+public enum StockLedgerOriginType
+{
+    InitialStock = 0,
+    ManualEntry = 1,
+    OrderPayment = 2,
+    ManualAdjustment = 3,
+}
+
 public sealed record SkuStockConsumption(
     Guid Id,
     Guid TenantId,
     Guid SkuId,
     Guid SourceSkuId,
     decimal QuantityBase
+);
+
+public sealed record SkuStockLedgerEntry(
+    Guid Id,
+    Guid TenantId,
+    Guid SkuId,
+    decimal DeltaBaseQty,
+    decimal StockAfterBaseQty,
+    StockLedgerOriginType OriginType,
+    Guid? OriginId,
+    string? Notes,
+    Guid? ActorUserId,
+    DateTimeOffset CreatedAt
 );
 
 public sealed record Sku(
@@ -49,6 +70,7 @@ public sealed record Sku(
     decimal? NfeCofinsVBc,
     decimal? NfeCofinsPCofins,
     decimal? NfeCofinsVCofins,
+    bool TracksStock,
     StockBaseUnit? StockBaseUnit,
     decimal? StockOnHandBaseQty,
     bool IsActive,

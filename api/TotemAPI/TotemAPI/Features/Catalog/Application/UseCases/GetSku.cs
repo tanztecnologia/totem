@@ -54,6 +54,7 @@ public sealed class GetSku
             NfeCofinsVBc: sku.NfeCofinsVBc,
             NfeCofinsPCofins: sku.NfeCofinsPCofins,
             NfeCofinsVCofins: sku.NfeCofinsVCofins,
+            TracksStock: sku.TracksStock,
             StockBaseUnit: sku.StockBaseUnit,
             StockOnHandBaseQty: sku.StockOnHandBaseQty,
             IsActive: sku.IsActive

@@ -55,6 +55,7 @@ public sealed class ListSkus
                         NfeCofinsVBc: s.NfeCofinsVBc,
                         NfeCofinsPCofins: s.NfeCofinsPCofins,
                         NfeCofinsVCofins: s.NfeCofinsVCofins,
+                        TracksStock: s.TracksStock,
                         StockBaseUnit: s.StockBaseUnit,
                         StockOnHandBaseQty: s.StockOnHandBaseQty,
                         IsActive: s.IsActive

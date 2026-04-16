@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TotemAPI.Infrastructure.Persistence;
 
@@ -10,9 +11,11 @@ using TotemAPI.Infrastructure.Persistence;
 namespace TotemAPI.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(TotemDbContext))]
-    partial class TotemDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260416013055_SkuTracksStock")]
+    partial class SkuTracksStock
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.11");
@@ -534,48 +537,6 @@ namespace TotemAPI.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("sku_stock_consumptions", (string)null);
-                });
-
-            modelBuilder.Entity("TotemAPI.Infrastructure.Persistence.SkuStockLedgerRow", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid?>("ActorUserId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<decimal>("DeltaBaseQty")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Notes")
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid?>("OriginId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("OriginType")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<Guid>("SkuId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<decimal>("StockAfterBaseQty")
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TenantId", "SkuId");
-
-                    b.HasIndex("TenantId", "SkuId", "CreatedAt");
-
-                    b.ToTable("sku_stock_ledger", (string)null);
                 });
 
             modelBuilder.Entity("TotemAPI.Infrastructure.Persistence.TenantRow", b =>

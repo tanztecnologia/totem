@@ -679,7 +679,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"quantity\": 10,\n  \"unit\": \"kg\"\n}"
+              "raw": "{\n  \"quantity\": 10,\n  \"unit\": \"kg\",\n  \"notes\": \"Reposição de estoque\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/skus/{{skuId}}/stock/entry",
@@ -692,6 +692,36 @@
                 "{{skuId}}",
                 "stock",
                 "entry"
+              ]
+            }
+          }
+        },
+        {
+          "name": "List SKU Stock Ledger",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/skus/{{skuId}}/stock/ledger?limit=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "skus",
+                "{{skuId}}",
+                "stock",
+                "ledger"
+              ],
+              "query": [
+                { "key": "limit", "value": "50" },
+                { "key": "cursorCreatedAt", "value": "", "disabled": true },
+                { "key": "cursorId", "value": "", "disabled": true }
               ]
             }
           }

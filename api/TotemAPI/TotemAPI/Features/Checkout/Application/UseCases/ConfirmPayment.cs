@@ -153,6 +153,7 @@ public sealed class ConfirmPayment
 
             var sku = await _skus.GetByIdAsync(tenantId, item.SkuId, ct);
             if (sku is null) continue;
+            if (!sku.TracksStock) continue;
             if (sku.StockBaseUnit is null || sku.StockOnHandBaseQty is null) continue;
             if (sku.StockBaseUnit.Value != StockBaseUnit.Unit) continue;
 
@@ -160,9 +161,21 @@ public sealed class ConfirmPayment
             deltas[sku.Id] = deltas.TryGetValue(sku.Id, out var existing) ? existing + deltaSelf : deltaSelf;
         }
 
+        var now = DateTimeOffset.UtcNow;
         foreach (var kv in deltas)
         {
-            await _skus.ApplyStockDeltaAsync(tenantId, kv.Key, kv.Value, ct);
+            await _skus.AddStockLedgerEntryAsync(new SkuStockLedgerEntry(
+                Id: Guid.NewGuid(),
+                TenantId: tenantId,
+                SkuId: kv.Key,
+                DeltaBaseQty: kv.Value,
+                StockAfterBaseQty: 0,
+                OriginType: StockLedgerOriginType.OrderPayment,
+                OriginId: orderId,
+                Notes: null,
+                ActorUserId: null,
+                CreatedAt: now
+            ), ct);
         }
     }
 }

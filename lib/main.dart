@@ -31,14 +31,6 @@ import 'src/features/pdv/domain/usecases/list_pdv_orders_by_comanda.dart';
 import 'src/features/pdv/domain/usecases/pay_pdv_order.dart';
 import 'src/features/pdv/presentation/bloc/pdv_cubit.dart';
 import 'src/features/pdv/presentation/pages/pdv_page.dart';
-import 'src/features/dashboard/data/repositories/totem_api_dashboard_repository.dart';
-import 'src/features/dashboard/data/repositories/totem_api_catalog_admin_repository.dart';
-import 'src/features/dashboard/domain/repositories/catalog_admin_repository.dart';
-import 'src/features/dashboard/domain/repositories/dashboard_repository.dart';
-import 'src/features/dashboard/domain/usecases/get_dashboard_overview.dart';
-import 'src/features/dashboard/domain/usecases/list_dashboard_orders.dart';
-import 'src/features/dashboard/presentation/bloc/dashboard_cubit.dart';
-import 'src/features/dashboard/presentation/pages/dashboard_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -233,21 +225,36 @@ class _AuthedApp extends StatelessWidget {
           }
 
           if (session.isDashboard) {
-            return MultiRepositoryProvider(
-              providers: [
-                RepositoryProvider<DashboardRepository>(
-                  create: (_) => TotemApiDashboardRepository(baseUrl: baseUrl, token: session.token),
+            return Scaffold(
+              body: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 560),
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Administração',
+                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'O painel administrativo foi movido para o Admin Web.',
+                          style: Theme.of(context).textTheme.bodyLarge,
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Use o Admin Web para visualizar dashboard e gerenciar produtos/estoque.',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-                RepositoryProvider<CatalogAdminRepository>(
-                  create: (_) => TotemApiCatalogAdminRepository(baseUrl: baseUrl, token: session.token),
-                ),
-              ],
-              child: BlocProvider(
-                create: (context) => DashboardCubit(
-                  getOverview: GetDashboardOverview(context.read<DashboardRepository>()),
-                  listOrders: ListDashboardOrders(context.read<DashboardRepository>()),
-                ),
-                child: const DashboardPage(),
               ),
             );
           }

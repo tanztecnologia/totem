@@ -107,24 +107,78 @@ public sealed class EfSkuRepository : ISkuRepository
         await _db.SaveChangesAsync(ct);
     }
 
-    public async Task ApplyStockDeltaAsync(Guid tenantId, Guid skuId, decimal deltaBaseQty, CancellationToken ct)
+    public async Task<SkuStockLedgerEntry> AddStockLedgerEntryAsync(SkuStockLedgerEntry entry, CancellationToken ct)
     {
-        if (tenantId == Guid.Empty) throw new ArgumentException("TenantId inválido.");
-        if (skuId == Guid.Empty) throw new ArgumentException("SkuId inválido.");
-        if (deltaBaseQty == 0) return;
+        if (entry.TenantId == Guid.Empty) throw new ArgumentException("TenantId inválido.");
+        if (entry.SkuId == Guid.Empty) throw new ArgumentException("SkuId inválido.");
+        if (entry.DeltaBaseQty == 0) throw new ArgumentException("DeltaBaseQty não pode ser zero.");
 
-        var row = await _db.Skus.SingleOrDefaultAsync(x => x.TenantId == tenantId && x.Id == skuId, ct);
-        if (row is null) throw new InvalidOperationException("SKU não encontrado.");
-
-        if (row.StockBaseUnit is null || row.StockOnHandBaseQty is null)
+        var skuRow = await _db.Skus.SingleOrDefaultAsync(x => x.TenantId == entry.TenantId && x.Id == entry.SkuId, ct);
+        if (skuRow is null) throw new InvalidOperationException("SKU não encontrado.");
+        if (!skuRow.TracksStock) throw new InvalidOperationException("SKU não controla estoque próprio.");
+        if (skuRow.StockBaseUnit is null || skuRow.StockOnHandBaseQty is null)
             throw new InvalidOperationException("Controle de estoque não configurado para o SKU.");
 
-        var next = row.StockOnHandBaseQty.Value + deltaBaseQty;
-        if (next < 0) throw new InvalidOperationException("Estoque insuficiente.");
+        var stockAfter = skuRow.StockOnHandBaseQty.Value + entry.DeltaBaseQty;
+        if (stockAfter < 0) throw new InvalidOperationException("Estoque insuficiente.");
 
-        row.StockOnHandBaseQty = next;
-        row.UpdatedAt = DateTimeOffset.UtcNow;
+        var persisted = entry with
+        {
+            Id = entry.Id == Guid.Empty ? Guid.NewGuid() : entry.Id,
+            StockAfterBaseQty = stockAfter,
+            CreatedAt = entry.CreatedAt == default ? DateTimeOffset.UtcNow : entry.CreatedAt,
+        };
+
+        _db.SkuStockLedger.Add(new SkuStockLedgerRow
+        {
+            Id = persisted.Id,
+            TenantId = persisted.TenantId,
+            SkuId = persisted.SkuId,
+            DeltaBaseQty = persisted.DeltaBaseQty,
+            StockAfterBaseQty = persisted.StockAfterBaseQty,
+            OriginType = persisted.OriginType,
+            OriginId = persisted.OriginId,
+            Notes = persisted.Notes,
+            ActorUserId = persisted.ActorUserId,
+            CreatedAt = persisted.CreatedAt,
+        });
+
+        skuRow.StockOnHandBaseQty = stockAfter;
+        skuRow.UpdatedAt = persisted.CreatedAt;
+
         await _db.SaveChangesAsync(ct);
+        return persisted;
+    }
+
+    public async Task<IReadOnlyList<SkuStockLedgerEntry>> ListStockLedgerAsync(
+        Guid tenantId,
+        Guid skuId,
+        int limit,
+        DateTimeOffset? cursorCreatedAt,
+        Guid? cursorId,
+        CancellationToken ct
+    )
+    {
+        if (limit <= 0) return Array.Empty<SkuStockLedgerEntry>();
+        if (limit > 500) limit = 500;
+
+        var query = _db.SkuStockLedger
+            .AsNoTracking()
+            .Where(x => x.TenantId == tenantId && x.SkuId == skuId);
+
+        if (cursorCreatedAt is not null && cursorId is not null && cursorId != Guid.Empty)
+        {
+            query = query.Where(x =>
+                x.CreatedAt < cursorCreatedAt ||
+                (x.CreatedAt == cursorCreatedAt && x.Id.CompareTo(cursorId.Value) < 0));
+        }
+
+        return await query
+            .OrderByDescending(x => x.CreatedAt)
+            .ThenByDescending(x => x.Id)
+            .Take(limit)
+            .Select(x => x.ToDomain())
+            .ToListAsync(ct);
     }
 
     public async Task<SkuSearchPageSnapshot> SearchPageAsync(
@@ -232,6 +286,7 @@ public sealed class EfSkuRepository : ISkuRepository
             NfeCofinsVBc = sku.NfeCofinsVBc,
             NfeCofinsPCofins = sku.NfeCofinsPCofins,
             NfeCofinsVCofins = sku.NfeCofinsVCofins,
+            TracksStock = sku.TracksStock,
             StockBaseUnit = sku.StockBaseUnit,
             StockOnHandBaseQty = sku.StockOnHandBaseQty,
             IsActive = sku.IsActive,
@@ -280,6 +335,7 @@ public sealed class EfSkuRepository : ISkuRepository
         row.NfeCofinsVBc = sku.NfeCofinsVBc;
         row.NfeCofinsPCofins = sku.NfeCofinsPCofins;
         row.NfeCofinsVCofins = sku.NfeCofinsVCofins;
+        row.TracksStock = sku.TracksStock;
         row.StockBaseUnit = sku.StockBaseUnit;
         row.StockOnHandBaseQty = sku.StockOnHandBaseQty;
         row.IsActive = sku.IsActive;

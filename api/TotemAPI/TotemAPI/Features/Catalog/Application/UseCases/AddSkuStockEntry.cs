@@ -7,7 +7,9 @@ public sealed record AddSkuStockEntryCommand(
     Guid TenantId,
     Guid SkuId,
     decimal Quantity,
-    string Unit
+    string Unit,
+    Guid? ActorUserId = null,
+    string? Notes = null
 );
 
 public sealed class AddSkuStockEntry
@@ -28,11 +30,39 @@ public sealed class AddSkuStockEntry
         var sku = await _skus.GetByIdAsync(command.TenantId, command.SkuId, ct);
         if (sku is null) return null;
 
-        if (sku.StockBaseUnit is null || sku.StockOnHandBaseQty is null)
-            throw new InvalidOperationException("Controle de estoque não configurado para o SKU.");
+        if (!sku.TracksStock)
+            throw new InvalidOperationException("SKU não controla estoque próprio.");
 
-        var delta = ConvertToBase(command.Quantity, command.Unit, sku.StockBaseUnit.Value);
-        await _skus.ApplyStockDeltaAsync(command.TenantId, command.SkuId, delta, ct);
+        var baseUnit = sku.StockBaseUnit ?? InferBaseUnit(command.Unit);
+        var onHand = sku.StockOnHandBaseQty ?? 0m;
+        if (sku.StockBaseUnit is null || sku.StockOnHandBaseQty is null)
+        {
+            await _skus.UpdateAsync(
+                sku with
+                {
+                    StockBaseUnit = baseUnit,
+                    StockOnHandBaseQty = onHand,
+                    UpdatedAt = DateTimeOffset.UtcNow,
+                },
+                ct
+            );
+            sku = await _skus.GetByIdAsync(command.TenantId, command.SkuId, ct);
+            if (sku is null) return null;
+        }
+
+        var delta = ConvertToBase(command.Quantity, command.Unit, baseUnit);
+        await _skus.AddStockLedgerEntryAsync(new SkuStockLedgerEntry(
+            Id: Guid.NewGuid(),
+            TenantId: command.TenantId,
+            SkuId: command.SkuId,
+            DeltaBaseQty: delta,
+            StockAfterBaseQty: 0, // calculado pelo repositório
+            OriginType: StockLedgerOriginType.ManualEntry,
+            OriginId: null,
+            Notes: command.Notes,
+            ActorUserId: command.ActorUserId,
+            CreatedAt: DateTimeOffset.UtcNow
+        ), ct);
 
         var updated = await _skus.GetByIdAsync(command.TenantId, command.SkuId, ct);
         if (updated is null) return null;
@@ -71,10 +101,21 @@ public sealed class AddSkuStockEntry
             NfeCofinsVBc: updated.NfeCofinsVBc,
             NfeCofinsPCofins: updated.NfeCofinsPCofins,
             NfeCofinsVCofins: updated.NfeCofinsVCofins,
+            TracksStock: updated.TracksStock,
             StockBaseUnit: updated.StockBaseUnit,
             StockOnHandBaseQty: updated.StockOnHandBaseQty,
             IsActive: updated.IsActive
         );
+    }
+
+    private static StockBaseUnit InferBaseUnit(string unit)
+    {
+        var u = (unit ?? string.Empty).Trim().ToLowerInvariant();
+        if (u is "g" or "gr" or "grama" or "gramas" or "kg" or "quilo" or "kilo" or "kilograma" or "kilogramas")
+            return StockBaseUnit.Gram;
+        if (u is "ml" or "mililitro" or "mililitros" or "l" or "lt" or "litro" or "litros")
+            return StockBaseUnit.Milliliter;
+        return StockBaseUnit.Unit;
     }
 
     private static decimal ConvertToBase(decimal quantity, string unit, StockBaseUnit baseUnit)
@@ -101,4 +142,3 @@ public sealed class AddSkuStockEntry
         };
     }
 }
-

@@ -11,9 +11,11 @@ public sealed record CreateSkuCommand(
     int PriceCents,
     int? AveragePrepSeconds,
     string? ImageUrl,
+    bool? TracksStock,
     StockBaseUnit? StockBaseUnit,
     decimal? StockOnHandBaseQty,
-    bool IsActive
+    bool IsActive,
+    Guid? ActorUserId = null
 );
 
 public sealed record SkuResult(
@@ -50,6 +52,7 @@ public sealed record SkuResult(
     decimal? NfeCofinsVBc,
     decimal? NfeCofinsPCofins,
     decimal? NfeCofinsVCofins,
+    bool TracksStock,
     StockBaseUnit? StockBaseUnit,
     decimal? StockOnHandBaseQty,
     bool IsActive
@@ -75,16 +78,25 @@ public sealed class CreateSku
         var name = (command.Name ?? string.Empty).Trim();
         var imageUrl = string.IsNullOrWhiteSpace(command.ImageUrl) ? null : command.ImageUrl.Trim();
         var stockOnHand = command.StockOnHandBaseQty;
+        var tracksStock = command.TracksStock ?? (command.StockBaseUnit is not null || stockOnHand is not null);
 
         if (name.Length < 2) throw new ArgumentException("Name inválido.");
         if (command.PriceCents < 0) throw new ArgumentException("PriceCents inválido.");
         if (command.AveragePrepSeconds is not null && command.AveragePrepSeconds <= 0)
             throw new ArgumentException("AveragePrepSeconds inválido.");
-        if (stockOnHand is not null && stockOnHand < 0) throw new ArgumentException("StockOnHandBaseQty inválido.");
-        if (command.StockBaseUnit is null && stockOnHand is not null)
-            throw new ArgumentException("StockBaseUnit é obrigatório quando StockOnHandBaseQty for informado.");
-        if (command.StockBaseUnit is not null && stockOnHand is null)
-            stockOnHand = 0;
+        if (!tracksStock)
+        {
+            if (command.StockBaseUnit is not null || stockOnHand is not null)
+                throw new ArgumentException("StockBaseUnit/StockOnHandBaseQty não devem ser informados quando TracksStock for false.");
+        }
+        else
+        {
+            if (stockOnHand is not null && stockOnHand < 0) throw new ArgumentException("StockOnHandBaseQty inválido.");
+            if (command.StockBaseUnit is null && stockOnHand is not null)
+                throw new ArgumentException("StockBaseUnit é obrigatório quando StockOnHandBaseQty for informado.");
+            if (command.StockBaseUnit is not null && stockOnHand is null)
+                stockOnHand = 0;
+        }
 
         var category = await _categories.GetByCodeAsync(command.TenantId, categoryCode, ct);
         if (category is null) throw new InvalidOperationException("Categoria não encontrada.");
@@ -95,6 +107,7 @@ public sealed class CreateSku
             var max = await _skus.GetMaxCodeNumberAsync(command.TenantId, ct);
             var nextCode = (max + 1).ToString("D5");
 
+            var initialOnHand = tracksStock ? stockOnHand ?? 0m : (decimal?)null;
             var sku = new Sku(
                 Id: Guid.NewGuid(),
                 TenantId: command.TenantId,
@@ -129,8 +142,9 @@ public sealed class CreateSku
                 NfeCofinsVBc: null,
                 NfeCofinsPCofins: null,
                 NfeCofinsVCofins: null,
-                StockBaseUnit: command.StockBaseUnit,
-                StockOnHandBaseQty: stockOnHand,
+                TracksStock: tracksStock,
+                StockBaseUnit: tracksStock ? command.StockBaseUnit : null,
+                StockOnHandBaseQty: tracksStock && command.StockBaseUnit is not null ? 0m : null,
                 IsActive: command.IsActive,
                 CreatedAt: now,
                 UpdatedAt: now
@@ -139,43 +153,61 @@ public sealed class CreateSku
             try
             {
                 await _skus.AddAsync(sku, ct);
+
+                if (tracksStock && command.StockBaseUnit is not null && initialOnHand > 0)
+                {
+                    await _skus.AddStockLedgerEntryAsync(new SkuStockLedgerEntry(
+                        Id: Guid.NewGuid(),
+                        TenantId: sku.TenantId,
+                        SkuId: sku.Id,
+                        DeltaBaseQty: initialOnHand.Value,
+                        StockAfterBaseQty: 0, // calculado pelo repositório
+                        OriginType: StockLedgerOriginType.InitialStock,
+                        OriginId: null,
+                        Notes: "Estoque inicial",
+                        ActorUserId: command.ActorUserId,
+                        CreatedAt: now
+                    ), ct);
+                }
+                var created = await _skus.GetByIdAsync(sku.TenantId, sku.Id, ct) ?? sku;
                 return new SkuResult(
-                    Id: sku.Id,
-                    TenantId: sku.TenantId,
-                    CategoryCode: sku.CategoryCode,
-                    Code: sku.Code,
-                    Name: sku.Name,
-                    PriceCents: sku.PriceCents,
-                    AveragePrepSeconds: sku.AveragePrepSeconds,
-                    ImageUrl: sku.ImageUrl,
-                    NfeCProd: sku.NfeCProd,
-                    NfeCEan: sku.NfeCEan,
-                    NfeCfop: sku.NfeCfop,
-                    NfeUCom: sku.NfeUCom,
-                    NfeQCom: sku.NfeQCom,
-                    NfeVUnCom: sku.NfeVUnCom,
-                    NfeVProd: sku.NfeVProd,
-                    NfeCEanTrib: sku.NfeCEanTrib,
-                    NfeUTrib: sku.NfeUTrib,
-                    NfeQTrib: sku.NfeQTrib,
-                    NfeVUnTrib: sku.NfeVUnTrib,
-                    NfeIcmsOrig: sku.NfeIcmsOrig,
-                    NfeIcmsCst: sku.NfeIcmsCst,
-                    NfeIcmsModBc: sku.NfeIcmsModBc,
-                    NfeIcmsVBc: sku.NfeIcmsVBc,
-                    NfeIcmsPIcms: sku.NfeIcmsPIcms,
-                    NfeIcmsVIcms: sku.NfeIcmsVIcms,
-                    NfePisCst: sku.NfePisCst,
-                    NfePisVBc: sku.NfePisVBc,
-                    NfePisPPis: sku.NfePisPPis,
-                    NfePisVPis: sku.NfePisVPis,
-                    NfeCofinsCst: sku.NfeCofinsCst,
-                    NfeCofinsVBc: sku.NfeCofinsVBc,
-                    NfeCofinsPCofins: sku.NfeCofinsPCofins,
-                    NfeCofinsVCofins: sku.NfeCofinsVCofins,
-                    StockBaseUnit: sku.StockBaseUnit,
-                    StockOnHandBaseQty: sku.StockOnHandBaseQty,
-                    IsActive: sku.IsActive
+                    Id: created.Id,
+                    TenantId: created.TenantId,
+                    CategoryCode: created.CategoryCode,
+                    Code: created.Code,
+                    Name: created.Name,
+                    PriceCents: created.PriceCents,
+                    AveragePrepSeconds: created.AveragePrepSeconds,
+                    ImageUrl: created.ImageUrl,
+                    NfeCProd: created.NfeCProd,
+                    NfeCEan: created.NfeCEan,
+                    NfeCfop: created.NfeCfop,
+                    NfeUCom: created.NfeUCom,
+                    NfeQCom: created.NfeQCom,
+                    NfeVUnCom: created.NfeVUnCom,
+                    NfeVProd: created.NfeVProd,
+                    NfeCEanTrib: created.NfeCEanTrib,
+                    NfeUTrib: created.NfeUTrib,
+                    NfeQTrib: created.NfeQTrib,
+                    NfeVUnTrib: created.NfeVUnTrib,
+                    NfeIcmsOrig: created.NfeIcmsOrig,
+                    NfeIcmsCst: created.NfeIcmsCst,
+                    NfeIcmsModBc: created.NfeIcmsModBc,
+                    NfeIcmsVBc: created.NfeIcmsVBc,
+                    NfeIcmsPIcms: created.NfeIcmsPIcms,
+                    NfeIcmsVIcms: created.NfeIcmsVIcms,
+                    NfePisCst: created.NfePisCst,
+                    NfePisVBc: created.NfePisVBc,
+                    NfePisPPis: created.NfePisPPis,
+                    NfePisVPis: created.NfePisVPis,
+                    NfeCofinsCst: created.NfeCofinsCst,
+                    NfeCofinsVBc: created.NfeCofinsVBc,
+                    NfeCofinsPCofins: created.NfeCofinsPCofins,
+                    NfeCofinsVCofins: created.NfeCofinsVCofins,
+                    TracksStock: created.TracksStock,
+                    StockBaseUnit: created.StockBaseUnit,
+                    StockOnHandBaseQty: created.StockOnHandBaseQty,
+                    IsActive: created.IsActive
                 );
             }
             catch (DbUpdateException) when (attempt < 2)
